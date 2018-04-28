@@ -261,7 +261,7 @@ namespace OpenHardwareMonitor.Hardware.CPU {
       {
         coreTemperatures = new Sensor[coreCount];
         for (int i = 0; i < coreTemperatures.Length; i++) {
-          coreTemperatures[i] = new Sensor(CoreString(i), i,
+            coreTemperatures[i] = new Sensor(CoreString(i), i + 1,
             SensorType.Temperature, this, new[] { 
               new ParameterDescription(
                 "TjMax [°C]", "TjMax temperature of the core sensor.\n" + 
@@ -281,7 +281,7 @@ namespace OpenHardwareMonitor.Hardware.CPU {
         microarchitecture != Microarchitecture.Unknown) 
       {
         packageTemperature = new Sensor("CPU Package",
-          coreTemperatures.Length, SensorType.Temperature, this, new[] { 
+            /*coreTemperatures.Length*/ 0, SensorType.Temperature, this, new[] {
               new ParameterDescription(
                 "TjMax [°C]", "TjMax temperature of the package sensor.\n" + 
                 "Temperature = TjMax - TSlope * Value.", tjMax[0]), 

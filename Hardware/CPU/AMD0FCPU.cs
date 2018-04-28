@@ -58,7 +58,7 @@ namespace OpenHardwareMonitor.Hardware.CPU {
         coreTemperatures = new Sensor[coreCount];
         for (int i = 0; i < coreCount; i++) {
           coreTemperatures[i] =
-            new Sensor("Core #" + (i + 1), i, SensorType.Temperature,
+              new Sensor("Core #" + (i + 1), i + 1, SensorType.Temperature,
               this, new [] { new ParameterDescription("Offset [°C]", 
                   "Temperature offset of the thermal sensor.\n" + 
                   "Temperature = Value + Offset.", offset)

@@ -24,7 +24,7 @@ namespace OpenHardwareMonitor.Hardware.RAM {
         return;
       }
 
-      hardware = new Hardware[] { new GenericRAM("Generic Memory", settings) };
+      hardware = new Hardware[] { new GenericRAM("Memory", settings) };
     }
 
     public string GetReport() {
