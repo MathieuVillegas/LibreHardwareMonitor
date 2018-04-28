@@ -5,7 +5,7 @@
     <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
     <EnableDefaultItems>false</EnableDefaultItems>
     <RootNamespace>OpenHardwareMonitor</RootNamespace>
-    <AssemblyName>OpenHardwareMonitorLib</AssemblyName>
+    <AssemblyName>monitor</AssemblyName>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <OutputTypeEx>Library</OutputTypeEx>
     <RuntimeIdentifiers>win</RuntimeIdentifiers>

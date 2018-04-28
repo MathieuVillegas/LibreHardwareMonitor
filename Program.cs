@@ -58,7 +58,7 @@ namespace OpenHardwareMonitor {
     private static bool AllRequiredFilesAvailable() {
       if (!IsFileAvailable("Aga.Controls.dll"))
         return false;
-      if (!IsFileAvailable("OpenHardwareMonitorLib.dll"))
+      if (!IsFileAvailable("monitor.dll"))
         return false;
       if (!IsFileAvailable("OxyPlot.dll"))
         return false;
