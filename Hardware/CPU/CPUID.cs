@@ -188,6 +188,7 @@ namespace OpenHardwareMonitor.Hardware.CPU {
           
           if (this.family == 0x17)
           {
+            threadMaskWith = 1;
             // ApicIdCoreIdSize: APIC ID size. 
             // cores per DIE 
             // we need this for Ryzen 5 (4 cores, 8 threads) ans Ryzen 6 (6 cores, 12 threads) 
