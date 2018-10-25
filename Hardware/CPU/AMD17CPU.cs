@@ -217,7 +217,7 @@ namespace OpenHardwareMonitor.Hardware.CPU
       }
       #endregion
 
-      public void AppendThread(CPUID thread, int numa_id, int core_id)
+      public void AppendThread(CPUID thread, int numa_id, int core_id, int realCoreNumber)
       {
         NumaNode node = null;
         foreach (var n in Nodes)
@@ -231,7 +231,7 @@ namespace OpenHardwareMonitor.Hardware.CPU
           Nodes.Add(node);
         }
         if (thread != null)
-          node.AppendThread(thread, core_id);
+          node.AppendThread(thread, core_id, realCoreNumber);
       }      
     }
     #endregion
@@ -250,7 +250,7 @@ namespace OpenHardwareMonitor.Hardware.CPU
         _hw = (AMD17CPU)hw;        
       }
 
-      public void AppendThread(CPUID thread, int core_id)
+      public void AppendThread(CPUID thread, int core_id, int realCoreNumber)
       {
         Core core = null;        
         foreach (var c in Cores)
@@ -260,7 +260,7 @@ namespace OpenHardwareMonitor.Hardware.CPU
         }
         if (core == null)
         {
-          core = new Core(_hw, core_id);
+          core = new Core(_hw, core_id, realCoreNumber);
           Cores.Add(core);
         }
         if (thread != null)
@@ -288,15 +288,15 @@ namespace OpenHardwareMonitor.Hardware.CPU
       public int CoreId { get; private set; }
       public List<CPUID> Threads { get; private set; }      
 
-      public Core(Hardware hw, int id)
+      public Core(Hardware hw, int id, int realCoreNumber)
       {
         Threads = new List<CPUID>();
         CoreId = id;
         _hw = (AMD17CPU)hw;
-        _clock = new Sensor("Core #" + CoreId.ToString(), _hw._sensorClock++, SensorType.Clock, _hw, _hw.settings);
-        _multiplier = new Sensor("Core #" + CoreId.ToString(), _hw._sensorMulti++, SensorType.Factor, _hw, _hw.settings);
-        _power = new Sensor("Core #" + CoreId.ToString() + " (SMU)", _hw._sensorPower++, SensorType.Power, _hw, _hw.settings);
-        _vcore = new Sensor("Core #" + CoreId.ToString() + " VID", _hw._sensorVoltage++, SensorType.Voltage, _hw, _hw.settings);
+        _clock = new Sensor("Core #" + realCoreNumber, _hw._sensorClock++, SensorType.Clock, _hw, _hw.settings);
+        _multiplier = new Sensor("Core #" + realCoreNumber, _hw._sensorMulti++, SensorType.Factor, _hw, _hw.settings);
+        _power = new Sensor("Core #" + realCoreNumber + " (SMU)", _hw._sensorPower++, SensorType.Power, _hw, _hw.settings);
+        _vcore = new Sensor("Core #" + realCoreNumber + " VID", _hw._sensorVoltage++, SensorType.Voltage, _hw, _hw.settings);
 
         _hw.ActivateSensor(_clock);
         _hw.ActivateSensor(_multiplier);
@@ -403,6 +403,7 @@ namespace OpenHardwareMonitor.Hardware.CPU
       _ryzen = new Processor(this);
       int NodesPerProcessor = 1 + (int)((cpuid[0][0].ExtData[0x1e, ECX] >> 8) & 0x7);
 
+  
       // add all numa nodes
       foreach (CPUID[] cpu in cpuid)
       {
@@ -416,9 +417,10 @@ namespace OpenHardwareMonitor.Hardware.CPU
         // Register ..1E_ECX, [7:0] 
         int node_id = (int)(thread.ExtData[0x1e, ECX] & 0xff);
 
-        _ryzen.AppendThread(null, node_id, core_id);
+        _ryzen.AppendThread(null, node_id, core_id, -1);
       }
 
+      int realCoreNumber = 0;
       // add all threads to numa nodes and specific core 
       foreach (CPUID[] cpu in cpuid)
       {
@@ -432,7 +434,8 @@ namespace OpenHardwareMonitor.Hardware.CPU
         // Register ..1E_ECX, [7:0] 
         int node_id = (int)(thread.ExtData[0x1e, ECX] & 0xff);
 
-        _ryzen.AppendThread(thread, node_id, core_id);
+        _ryzen.AppendThread(thread, node_id, core_id, realCoreNumber);
+        realCoreNumber++;
       }
       Update();
     }
