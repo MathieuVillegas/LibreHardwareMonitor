@@ -1,5 +1,5 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
+using System.Linq;
 using System.Net.NetworkInformation;
 using System.Text;
 
@@ -7,38 +7,78 @@ namespace OpenHardwareMonitor.Hardware.Nic
 {
     internal class NicGroup : IGroup
     {
-
-        private List<Hardware> hardware = new List<Hardware>();
-        private NetworkInterface[] _networkInterfaces;
+        private readonly ISettings _settings;
+        private List<Nic> _hardware = new List<Nic>();
+        private readonly object _scanLock = new object();
+        private readonly Dictionary<string, Nic> _nics = new Dictionary<string, Nic>();
 
         public NicGroup(ISettings settings)
         {
-            int p = (int)Environment.OSVersion.Platform;
-            if ((p == 4) || (p == 128))
+            _settings = settings;
+            ScanNics(settings);
+            NetworkChange.NetworkAddressChanged += NetworkChange_NetworkAddressChanged; 
+            NetworkChange.NetworkAvailabilityChanged += NetworkChange_NetworkAddressChanged;
+        }
+
+        private void ScanNics(ISettings settings)
+        {
+            // If no network is marked up (excluding loopback and tunnel) then don't scan
+            // for interfaces.
+            if (!NetworkInterface.GetIsNetworkAvailable())
             {
-                hardware = new List<Hardware>();
                 return;
             }
-            _networkInterfaces = NetworkInterface.GetAllNetworkInterfaces();
-            for (int i = 0; i < _networkInterfaces.Length; i++)
+
+            // When multiple events fire concurrently, we don't want threads interferring
+            // with others as they manipulate non-thread safe state.
+            lock (_scanLock)
             {
-                if (_networkInterfaces[i].NetworkInterfaceType != NetworkInterfaceType.Unknown && _networkInterfaces[i].NetworkInterfaceType != NetworkInterfaceType.Loopback && _networkInterfaces[i].NetworkInterfaceType != NetworkInterfaceType.Tunnel)
+                var networkInterfaces = NetworkInterface.GetAllNetworkInterfaces()
+                    .Where(DesiredNetworkType)
+                    .OrderBy(x => x.Name);
+
+                var scanned = networkInterfaces.ToDictionary(x => x.Id, x => x);
+                var newNics = scanned.Where(x => !_nics.ContainsKey(x.Key));
+                var removedNics = _nics.Where(x => !scanned.ContainsKey(x.Key)).ToList();
+
+                foreach (var nic in removedNics)
                 {
-                    hardware.Add(new Nic(_networkInterfaces[i].Name, settings, i, this));
+                    nic.Value.Close();
+                    _nics.Remove(nic.Key);
                 }
-                
+
+                foreach (var nic in newNics)
+                {
+                    _nics.Add(nic.Key, new Nic(nic.Value, settings));
+                }
+
+                _hardware = _nics.Values.OrderBy(x => x.Name).ToList();
             }
-                
+        }
+
+        private void NetworkChange_NetworkAddressChanged(object sender, System.EventArgs e)
+        {
+            ScanNics(_settings);
+        }
+
+        private static bool DesiredNetworkType(NetworkInterface nic)
+        {
+            switch (nic.NetworkInterfaceType)
+            {
+                case NetworkInterfaceType.Loopback:
+                case NetworkInterfaceType.Tunnel:
+                case NetworkInterfaceType.Unknown:
+                    return false;
+                default:
+                    return true;
+            }
         }
 
         public string GetReport()
         {
-            if (NetworkInterfaces == null)
-                return null;
-
             var report = new StringBuilder();
 
-            foreach (Nic hw in hardware)
+            foreach (Nic hw in _hardware)
             {
                 report.AppendLine(hw.NetworkInterface.Description);
                 report.AppendLine(hw.NetworkInterface.OperationalStatus.ToString());
@@ -54,27 +94,19 @@ namespace OpenHardwareMonitor.Hardware.Nic
             return report.ToString();
         }
 
-        public IHardware[] Hardware
+        public IEnumerable<IHardware> Hardware
         {
             get
             {
-                return hardware.ToArray();
+                return _hardware;
             }
         }
-        public NetworkInterface[] NetworkInterfaces
-        {
-            get
-            {
-                return _networkInterfaces;
-            }
-            set
-            {
-                _networkInterfaces = value;
-            }
-        }
+
         public void Close()
         {
-            foreach (Hardware nic in hardware)
+            NetworkChange.NetworkAddressChanged -= NetworkChange_NetworkAddressChanged;
+            NetworkChange.NetworkAvailabilityChanged -= NetworkChange_NetworkAddressChanged;
+            foreach (var nic in _hardware)
                 nic.Close();
         }
     }

@@ -283,7 +283,7 @@ namespace OpenHardwareMonitor.Hardware {
       Array.Sort(sensors, CompareSensor);
       foreach (ISensor sensor in sensors) {
         string innerSpace = space + "|  ";
-        if (sensor.Parameters.Length > 0) {
+        if (sensor.Parameters.Count > 0) {
           w.WriteLine("{0}|", innerSpace);
           w.WriteLine("{0}+- {1} ({2})",
             innerSpace, sensor.Name, sensor.Identifier);
@@ -365,7 +365,7 @@ namespace OpenHardwareMonitor.Hardware {
             w.Write(report);
           }
 
-          IHardware[] hardwareArray = group.Hardware;
+          var hardwareArray = group.Hardware;
           foreach (IHardware hardware in hardwareArray)
             ReportHardware(hardware, w);
 
@@ -402,14 +402,8 @@ namespace OpenHardwareMonitor.Hardware {
 
     public void Traverse(IVisitor visitor) {
       foreach (IGroup group in groups)
-        foreach (IHardware hardware in group.Hardware) 
+        foreach (IHardware hardware in group.Hardware)
           hardware.Accept(visitor);
-          int newNiccount = NetworkInterface.GetAllNetworkInterfaces().Length;
-          if (nicCount != newNiccount) {
-            nicCount = newNiccount;
-            NICEnabled = false;
-            NICEnabled = true;
-          }
     }
 
     private class Settings : ISettings {

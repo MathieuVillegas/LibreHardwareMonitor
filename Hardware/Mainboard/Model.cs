@@ -33,6 +33,7 @@ namespace OpenHardwareMonitor.Hardware.Mainboard {
     Rampage_Extreme,
     Rampage_II_GENE,
     PRIME_X370_PRO,
+    ROG_MAXIMUS_APEX,
 
     // DFI
     LP_BI_P45_T2RS_Elite,
@@ -86,6 +87,9 @@ namespace OpenHardwareMonitor.Hardware.Mainboard {
     Z68X_UD3H_B3,
     Z68X_UD7_B3,
     AX370_K7,
+    Z390_M_GAMING,
+    Z390_AORUS_ULTRA,
+    Z390_UD,
 
     // Shuttle
     FH67,

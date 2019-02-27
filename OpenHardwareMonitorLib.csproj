@@ -26,8 +26,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Compile Include="Collections\Pair.cs" />
-    <Compile Include="Collections\RingCollection.cs" />
     <Compile Include="Hardware\Aquacomputer\AquacomputerGroup.cs" />
     <Compile Include="Hardware\Aquacomputer\AquastreamXT.cs" />
     <Compile Include="Hardware\ATI\ADL.cs" />
@@ -67,7 +65,10 @@
     <Compile Include="Hardware\Mainboard\GigabyteTAMG.cs" />
     <Compile Include="Hardware\Mainboard\Identification.cs" />
     <Compile Include="Hardware\Nic\Nic.cs" />
-    <Compile Include="Hardware\Nic\NicGroup.cs" />	
+    <Compile Include="Hardware\Nic\NicGroup.cs" />
+    <Compile Include="Hardware\Nvidia\NVML.cs" />
+    <Compile Include="Hardware\Nvidia\NvmlDevice.cs" />
+    <Compile Include="Hardware\Nvidia\NvmlReturn.cs" />	
     <Compile Include="Hardware\Opcode.cs" />
     <Compile Include="Hardware\RAM\GenericRAM.cs" />
     <Compile Include="Hardware\RAM\RAMGroup.cs" />
@@ -111,9 +112,6 @@
     <Compile Include="Hardware\TBalancer\TBalancerGroup.cs" />
     <Compile Include="Hardware\ISettings.cs" />
     <Compile Include="Hardware\HexStringArray.cs" />
-    <Compile Include="Collections\IReadOnlyArray.cs" />
-    <Compile Include="Collections\ListSet.cs" />
-    <Compile Include="Collections\ReadOnlyArray.cs" />
     <Compile Include="Hardware\ThreadAffinity.cs" />
     <Compile Include="Properties\AssemblyLibInfo.cs" />
     <Compile Include="Properties\AssemblyVersion.cs" />
