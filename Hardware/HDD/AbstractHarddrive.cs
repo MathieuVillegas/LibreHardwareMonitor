@@ -15,9 +15,10 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Text;
-using OpenHardwareMonitor.Collections;
+using System.Linq;
 
-namespace OpenHardwareMonitor.Hardware.HDD {
+namespace OpenHardwareMonitor.Hardware.HDD
+{
   public abstract class AbstractHarddrive : Hardware {
 
     private const int UPDATE_DIVIDER = 30; // update only every 30s
@@ -33,17 +34,17 @@ namespace OpenHardwareMonitor.Hardware.HDD {
       typeof(GenericHarddisk)
     };
 
-    private string firmwareRevision;
+    private readonly string firmwareRevision;
     private readonly ISmart smart;
 
     private readonly IntPtr handle;
     private readonly int index;
     private int count;
 
-    private IList<SmartAttribute> smartAttributes;
+    private readonly IReadOnlyList<SmartAttribute> smartAttributes;
     private IDictionary<SmartAttribute, Sensor> sensors;
 
-    private DriveInfo[] driveInfos;
+    private readonly DriveInfo[] driveInfos;
     private Sensor usageSensor;
 
     protected AbstractHarddrive(ISmart smart, string name, 
@@ -62,7 +63,7 @@ namespace OpenHardwareMonitor.Hardware.HDD {
       this.index = index;
       this.count = 0;
 
-      this.smartAttributes = new List<SmartAttribute>(smartAttributes);
+      this.smartAttributes = smartAttributes.ToList();
 
       string[] logicalDrives = smart.GetLogicalDrives(index);
       List<DriveInfo> driveInfoList = new List<DriveInfo>(logicalDrives.Length);
@@ -178,38 +179,26 @@ namespace OpenHardwareMonitor.Hardware.HDD {
       sensors = new Dictionary<SmartAttribute, Sensor>();
 
       if (handle != smart.InvalidHandle) {
-        IList<Pair<SensorType, int>> sensorTypeAndChannels =
-          new List<Pair<SensorType, int>>();
 
-        DriveAttributeValue[] values = smart.ReadSmartData(handle, index);
+        var smartIds = smart.ReadSmartData(handle, index)
+                            .Select(attrValue => attrValue.Identifier);
 
-        foreach (SmartAttribute attribute in smartAttributes) {
-          if (!attribute.SensorType.HasValue)
-            continue;
+        // unique attributes by SensorType and SensorChannel.
+        var uniqueAtrributes = smartAttributes
+            .Where(a => a.SensorType.HasValue)
+            .Where(a => smartIds.Contains(a.Identifier))
+            .GroupBy(a => new { a.SensorType.Value, a.SensorChannel })
+            .Select(g => g.First());
 
-          bool found = false;
-          foreach (DriveAttributeValue value in values) {
-            if (value.Identifier == attribute.Identifier) {
-              found = true;
-              break;
-            }
-          }
-          if (!found)
-            continue;
+        sensors = uniqueAtrributes.ToDictionary(attr => attr,
+            attr => new Sensor(attr.SensorName,
+              attr.SensorChannel, attr.DefaultHiddenSensor,
+              attr.SensorType.Value, this, attr.ParameterDescriptions,
+              settings));
 
-          Pair<SensorType, int> pair = new Pair<SensorType, int>(
-            attribute.SensorType.Value, attribute.SensorChannel);
-
-          if (!sensorTypeAndChannels.Contains(pair)) {
-            Sensor sensor = new Sensor(attribute.SensorName,
-              attribute.SensorChannel, attribute.DefaultHiddenSensor,
-              attribute.SensorType.Value, this, attribute.ParameterDescriptions,
-              settings);
-
-            sensors.Add(attribute, sensor);
-            ActivateSensor(sensor);
-            sensorTypeAndChannels.Add(pair);
-          }
+        foreach (var sensor in sensors)
+        {
+          ActivateSensor(sensor.Value);
         }
       }
 
@@ -308,13 +297,12 @@ namespace OpenHardwareMonitor.Hardware.HDD {
 
             string description = "Unknown";
             float? physical = null;
-            foreach (SmartAttribute a in smartAttributes) {
-              if (a.Identifier == value.Identifier) {
-                description = a.Name;
-                if (a.HasRawValueConversion | a.SensorType.HasValue)
-                  physical = a.ConvertValue(value, null);
-                else
-                  physical = null;
+
+            var attr = smartAttributes.FirstOrDefault(a => a.Identifier == value.Identifier);
+            if (attr != null) {
+              description = attr.Name;
+              if (attr.HasRawValueConversion | attr.SensorType.HasValue) {
+                physical = attr.ConvertValue(value, null);
               }
             }
 
@@ -352,7 +340,7 @@ namespace OpenHardwareMonitor.Hardware.HDD {
     }
 
     protected static float RawToInt(byte[] raw, byte value,
-      IReadOnlyArray<IParameter> parameters) 
+      IReadOnlyList<IParameter> parameters) 
     {
       return (raw[3] << 24) | (raw[2] << 16) | (raw[1] << 8) | raw[0];
     }

@@ -83,6 +83,10 @@ namespace OpenHardwareMonitor.Hardware.LPC {
               lmChips.Add(new LMChip(Chip.NCT6795D, path)); break;
             case "nct6796":
               lmChips.Add(new LMChip(Chip.NCT6796D, path)); break;
+            case "nct6797":
+              lmChips.Add(new LMChip(Chip.NCT6797D, path)); break;
+            case "nct6798":
+              lmChips.Add(new LMChip(Chip.NCT6798D, path)); break;
 
             case "w83627ehf":
               lmChips.Add(new LMChip(Chip.W83627EHF, path)); break;

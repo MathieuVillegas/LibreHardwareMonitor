@@ -1,4 +1,4 @@
-﻿/*
+/*
  
   This Source Code Form is subject to the terms of the Mozilla Public
   License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -13,7 +13,6 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.IO.Compression;
-using OpenHardwareMonitor.Collections;
 
 namespace OpenHardwareMonitor.Hardware {
 
@@ -25,12 +24,12 @@ namespace OpenHardwareMonitor.Hardware {
     private readonly bool defaultHidden;
     private readonly SensorType sensorType;
     private readonly Hardware hardware;
-    private readonly ReadOnlyArray<IParameter> parameters;
+    private readonly IReadOnlyList<IParameter> parameters;
     private float? currentValue;
     private float? minValue;
     private float? maxValue;
-    private readonly RingCollection<SensorValue> 
-      values = new RingCollection<SensorValue>();
+    private readonly List<SensorValue> values = new List<SensorValue>();
+    private TimeSpan valuesTimeWindow = TimeSpan.FromDays(1.0);
     private readonly ISettings settings;
     private IControl control;
     
@@ -124,13 +123,13 @@ namespace OpenHardwareMonitor.Hardware {
     }
 
     private void AppendValue(float value, DateTime time) {
-      if (values.Count >= 2 && values.Last.Value == value && 
+      if (values.Count >= 2 && values[values.Count - 1].Value == value && 
         values[values.Count - 2].Value == value) {
-        values.Last = new SensorValue(value, time);
+        values[values.Count - 1] = new SensorValue(value, time);
         return;
       } 
 
-      values.Append(new SensorValue(value, time));
+      values.Add(new SensorValue(value, time));
     }
 
     public IHardware Hardware {
@@ -170,7 +169,7 @@ namespace OpenHardwareMonitor.Hardware {
       get { return defaultHidden; }
     }
 
-    public IReadOnlyArray<IParameter> Parameters {
+    public IReadOnlyList<IParameter> Parameters {
       get { return parameters; }
     }
 
@@ -179,17 +178,19 @@ namespace OpenHardwareMonitor.Hardware {
         return currentValue; 
       }
       set {
-        DateTime now = DateTime.UtcNow;
-        while (values.Count > 0 && (now - values.First.Time).TotalDays > 1)
-          values.Remove();
+        if (valuesTimeWindow != TimeSpan.Zero) {
+          DateTime now = DateTime.UtcNow;
+          while (values.Count > 0 && (now - values[0].Time) > valuesTimeWindow)
+            values.RemoveAt(0);
 
-        if (value.HasValue) {
-          sum += value.Value;
-          count++;
-          if (count == 4) {
-            AppendValue(sum / count, now);
-            sum = 0;
-            count = 0;
+          if (value.HasValue) {
+            sum += value.Value;
+            count++;
+            if (count == 4) {
+              AppendValue(sum / count, now);
+              sum = 0;
+              count = 0;
+            }
           }
         }
 
@@ -215,6 +216,18 @@ namespace OpenHardwareMonitor.Hardware {
     public IEnumerable<SensorValue> Values {
       get { return values; }
     }    
+
+    public TimeSpan ValuesTimeWindow {
+      get {
+        return valuesTimeWindow;
+      }
+      set {
+        this.valuesTimeWindow = value;
+        
+        if (value == TimeSpan.Zero)
+            values.Clear();
+      }
+    }
 
     public void Accept(IVisitor visitor) {
       if (visitor == null)

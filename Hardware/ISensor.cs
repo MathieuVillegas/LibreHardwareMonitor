@@ -10,9 +10,9 @@
 
 using System;
 using System.Collections.Generic;
-using OpenHardwareMonitor.Collections;
 
-namespace OpenHardwareMonitor.Hardware {
+namespace OpenHardwareMonitor.Hardware
+{
 
   public enum SensorType {
     Voltage, // V
@@ -28,7 +28,8 @@ namespace OpenHardwareMonitor.Hardware {
     Power, // W
     Data, // GB = 2^30 Bytes    
     SmallData, // MB = 2^20 Bytes
-  }
+    Throughput, // B/s
+    }
 
   public struct SensorValue {
     private readonly float value;
@@ -55,7 +56,7 @@ namespace OpenHardwareMonitor.Hardware {
 
     bool IsDefaultHidden { get; }
 
-    IReadOnlyArray<IParameter> Parameters { get; }
+    IReadOnlyList<IParameter> Parameters { get; }
 
     float? Value { get; }
     float? Min { get; }
@@ -65,6 +66,7 @@ namespace OpenHardwareMonitor.Hardware {
     void ResetMax();
 
     IEnumerable<SensorValue> Values { get; }
+    TimeSpan ValuesTimeWindow { get; set; }
 
     IControl Control { get; }
   }
