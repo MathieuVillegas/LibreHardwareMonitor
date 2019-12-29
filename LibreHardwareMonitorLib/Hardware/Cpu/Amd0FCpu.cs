@@ -48,7 +48,7 @@ namespace LibreHardwareMonitor.Hardware.CPU
                 for (int i = 0; i < _coreCount; i++)
                 {
                     _coreTemperatures[i] = new Sensor("Core #" + (i + 1),
-                                                      i,
+                                                      i + 1,
                                                       SensorType.Temperature,
                                                       this,
                                                       new[] { new ParameterDescription("Offset [°C]", "Temperature offset of the thermal sensor.\nTemperature = Value + Offset.", offset) },

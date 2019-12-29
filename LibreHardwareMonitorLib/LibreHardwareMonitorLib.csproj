@@ -1,11 +1,11 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFrameworks>net452;netstandard2.0</TargetFrameworks>
+    <TargetFrameworks>net452</TargetFrameworks>
     <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
     <EnableDefaultItems>false</EnableDefaultItems>
     <RootNamespace>LibreHardwareMonitor</RootNamespace>
-    <AssemblyName>LibreHardwareMonitorLib</AssemblyName>
+    <AssemblyName>monitor</AssemblyName>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <OutputTypeEx>Library</OutputTypeEx>
     <RuntimeIdentifiers>win</RuntimeIdentifiers>
@@ -19,6 +19,7 @@
     <PackageTags>libre open hardware monitor monitoring system logging cpu gpu</PackageTags>
     <Pack>true</Pack>
     <RepositoryUrl>https://github.com/LibreHardwareMonitor/LibreHardwareMonitor</RepositoryUrl>
+    <Platforms>AnyCPU;x64;x86</Platforms>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)'=='Debug'">

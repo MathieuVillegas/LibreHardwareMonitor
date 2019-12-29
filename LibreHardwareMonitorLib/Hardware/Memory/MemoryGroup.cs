@@ -19,7 +19,7 @@ namespace LibreHardwareMonitor.Hardware.Memory
                 _hardware = new Hardware[0];
                 return;
             }
-            _hardware = new Hardware[] { new GenericMemory("Generic Memory", settings) };
+            _hardware = new Hardware[] { new GenericMemory("Memory", settings) };
         }
 
         public string GetReport()

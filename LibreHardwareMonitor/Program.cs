@@ -48,7 +48,7 @@ namespace LibreHardwareMonitor
             if (!IsFileAvailable("Aga.Controls.dll"))
                 return false;
 
-            if (!IsFileAvailable("LibreHardwareMonitorLib.dll"))
+            if (!IsFileAvailable("monitor.dll"))
                 return false;
 
             if (!IsFileAvailable("OxyPlot.dll"))

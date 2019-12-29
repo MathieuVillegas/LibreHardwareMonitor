@@ -259,7 +259,7 @@ namespace LibreHardwareMonitor.Hardware.CPU
                 for (int i = 0; i < _coreTemperatures.Length; i++)
                 {
                     _coreTemperatures[i] = new Sensor(CoreString(i),
-                                                      coreSensorId,
+                                                      coreSensorId + 1,
                                                       SensorType.Temperature,
                                                       this,
                                                       new[]
@@ -280,7 +280,7 @@ namespace LibreHardwareMonitor.Hardware.CPU
             if (cpuId[0][0].Data.GetLength(0) > 6 && (cpuId[0][0].Data[6, 0] & 0x40) != 0 && _microArchitecture != MicroArchitecture.Unknown)
             {
                 _packageTemperature = new Sensor("CPU Package",
-                                                 coreSensorId,
+                                                 coreSensorId + 1,
                                                  SensorType.Temperature,
                                                  this,
                                                  new[]
@@ -300,7 +300,7 @@ namespace LibreHardwareMonitor.Hardware.CPU
                 _distToTjMaxTemperatures = new Sensor[_coreCount];
                 for (int i = 0; i < _distToTjMaxTemperatures.Length; i++)
                 {
-                    _distToTjMaxTemperatures[i] = new Sensor(CoreString(i) + " Distance to TjMax", coreSensorId, SensorType.Temperature, this, settings);
+                    _distToTjMaxTemperatures[i] = new Sensor(CoreString(i) + " Distance to TjMax", coreSensorId + 1, SensorType.Temperature, this, settings);
                     ActivateSensor(_distToTjMaxTemperatures[i]);
                     coreSensorId++;
                 }
@@ -312,11 +312,11 @@ namespace LibreHardwareMonitor.Hardware.CPU
             //is only available when the cpu has more than 1 core
             if (cpuId[0][0].Data.GetLength(0) > 6 && (cpuId[0][0].Data[6, 0] & 0x40) != 0 && _microArchitecture != MicroArchitecture.Unknown && _coreCount > 1)
             {
-                _coreMax = new Sensor("Core Max", coreSensorId, SensorType.Temperature, this, settings);
+                _coreMax = new Sensor("Core Max", coreSensorId + 1, SensorType.Temperature, this, settings);
                 ActivateSensor(_coreMax);
                 coreSensorId++;
 
-                _coreAvg = new Sensor("Core Average", coreSensorId, SensorType.Temperature, this, settings);
+                _coreAvg = new Sensor("Core Average", coreSensorId + 1, SensorType.Temperature, this, settings);
                 ActivateSensor(_coreAvg);
             }
             else

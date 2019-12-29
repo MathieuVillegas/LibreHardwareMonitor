@@ -153,6 +153,26 @@ namespace LibreHardwareMonitor.Hardware.CPU
 
                     if (Family == 0x17)
                     {
+
+                        // if it's a ryzen 3 except the 2200U then there is 1 thread per core only
+                        // so threadMaskWidth is 0;
+                        if (
+                            (
+                              this.Name.Contains("1100")
+                              || this.Name.Contains("1200")
+                              || this.Name.Contains("1300")
+                              || this.Name.Contains("2200")
+                              || this.Name.Contains("2300")
+                            )
+                            && (!this.Name.Contains("2200U"))
+                          )
+                        {
+                            threadMaskWith = 0;
+                        }
+                        else
+                        {
+                            threadMaskWith = 1;
+                        }
                         // ApicIdCoreIdSize: APIC ID size.
                         // cores per DIE
                         // we need this for Ryzen 5 (4 cores, 8 threads) ans Ryzen 6 (6 cores, 12 threads)
