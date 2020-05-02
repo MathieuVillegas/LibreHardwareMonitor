@@ -30,7 +30,9 @@ namespace LibreHardwareMonitor.Hardware.CPU
             // add all numa nodes
             const int initialCoreId = 1_000_000_000;
 
-            int coreId = 1;
+            int coreId = 0;
+            //int coreId = 1;
+
             int lastCoreId = initialCoreId;
 
             // Ryzen 3000's skip some core ids.
@@ -49,7 +51,8 @@ namespace LibreHardwareMonitor.Hardware.CPU
 
                 _cpu.AppendThread(thread, nodeId, coreId);
 
-                if (lastCoreId != initialCoreId && coreIdRead != lastCoreId)
+                // lastCoreId != initialCoreId force to skip first incremetn every time so a core is skipped so I commented it
+                if (/*lastCoreId != initialCoreId &&*/ coreIdRead != lastCoreId)
                 {
                     coreId++;
                 }
