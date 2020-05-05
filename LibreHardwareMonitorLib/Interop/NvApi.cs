@@ -72,6 +72,10 @@ namespace LibreHardwareMonitor.Interop
             {
                 return;
             }
+            catch (Exception)
+            {
+                return;
+            }
 
             if (nvApiInitialize() == NvStatus.OK)
             {
@@ -173,19 +177,14 @@ namespace LibreHardwareMonitor.Interop
 
         private static void GetDelegate<T>(uint id, out T newDelegate) where T : class
         {
-            try
-            {
-                IntPtr ptr = IntPtr.Size == 4 ? NvAPI32_QueryInterface(id) : NvAPI64_QueryInterface(id);
+            throw new Exception();
+            IntPtr ptr = IntPtr.Size == 4 ? NvAPI32_QueryInterface(id) : NvAPI64_QueryInterface(id);
 
-                if (ptr != IntPtr.Zero)
-                    newDelegate = Marshal.GetDelegateForFunctionPointer(ptr, typeof(T)) as T;
-                else
-                    newDelegate = null;
-            } 
-            catch (Exception)
-            {
+            if (ptr != IntPtr.Zero)
+                newDelegate = Marshal.GetDelegateForFunctionPointer(ptr, typeof(T)) as T;
+            else
                 newDelegate = null;
-            }
+    
         }
 
         internal enum NvStatus
