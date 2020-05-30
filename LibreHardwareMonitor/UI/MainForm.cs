@@ -122,9 +122,9 @@ namespace LibreHardwareMonitor.UI
             _systemTray.HideShowCommand += HideShowClick;
             _systemTray.ExitCommand += ExitClick;
 
-            int p = (int)Environment.OSVersion.Platform;
-            if ((p == 4) || (p == 128))
-            { // Unix
+            if (Software.OperatingSystem.IsUnix)
+            {
+                // Unix
                 treeView.RowHeight = Math.Max(treeView.RowHeight, 18);
                 splitContainer.BorderStyle = BorderStyle.None;
                 splitContainer.Border3DStyle = Border3DStyle.Adjust;
@@ -267,7 +267,7 @@ namespace LibreHardwareMonitor.UI
             celsiusMenuItem.Checked = _unitManager.TemperatureUnit == TemperatureUnit.Celsius;
             fahrenheitMenuItem.Checked = !celsiusMenuItem.Checked;
 
-            Server = new HttpServer(_root, _settings.GetValue("listenerPort", 8085));
+            Server = new HttpServer(_root, _settings.GetValue("listenerPort", 8085), _settings.GetValue("authenticationEnabled", false), _settings.GetValue("authenticationUserName", ""), _settings.GetValue("authenticationPassword", ""));
             if (Server.PlatformNotSupported)
             {
                 webMenuItemSeparator.Visible = false;
@@ -282,6 +282,8 @@ namespace LibreHardwareMonitor.UI
                 else
                     Server.StopHttpListener();
             };
+
+            authWebServerMenuItem.Checked = _settings.GetValue("authenticationEnabled", false);
 
             _logSensors = new UserOption("logSensorsMenuItem", false, logSensorsMenuItem, _settings);
 
@@ -353,7 +355,9 @@ namespace LibreHardwareMonitor.UI
                 }
             }
             else
+            {
                 Show();
+            }
 
             // Create a handle, otherwise calling Close() does not fire FormClosed
 
@@ -365,6 +369,17 @@ namespace LibreHardwareMonitor.UI
                 if (_runWebServer.Value)
                     Server.Quit();
             };
+
+            Microsoft.Win32.SystemEvents.PowerModeChanged += PowerModeChanged;
+        }
+
+        private void PowerModeChanged(object sender, Microsoft.Win32.PowerModeChangedEventArgs eventArgs)
+        {
+
+            if (eventArgs.Mode == Microsoft.Win32.PowerModes.Resume)
+            {
+                _computer.Reset();
+            }
         }
 
         private void InitializeSplitter()
@@ -648,6 +663,9 @@ namespace LibreHardwareMonitor.UI
                 _settings.SetValue("treeView.Columns." + column.Header + ".Width", column.Width);
 
             _settings.SetValue("listenerPort", Server.ListenerPort);
+            _settings.SetValue("authenticationEnabled", Server.AuthEnabled);
+            _settings.SetValue("authenticationUserName", Server.UserName);
+            _settings.SetValue("authenticationPassword", Server.Password);
 
             string fileName = Path.ChangeExtension(Application.ExecutablePath, ".config");
 
@@ -999,8 +1017,7 @@ namespace LibreHardwareMonitor.UI
             // disable the fallback MainIcon during reset, otherwise icon visibility
             // might be lost
             _systemTray.IsMainIconEnabled = false;
-            _computer.Close();
-            _computer.Open();
+            _computer.Reset();
             // restore the MainIcon setting
             _systemTray.IsMainIconEnabled = _minimizeToTray.Value;
         }
@@ -1028,5 +1045,12 @@ namespace LibreHardwareMonitor.UI
         }
 
         public HttpServer Server { get; }
+
+        private void AuthWebServerMenuItem_Click(object sender, EventArgs e)
+        {
+            new AuthForm(this).ShowDialog();
+        }
+
+        public bool AuthWebServerMenuItemChecked { get { return authWebServerMenuItem.Checked; } set { authWebServerMenuItem.Checked = value; } }
     }
 }
