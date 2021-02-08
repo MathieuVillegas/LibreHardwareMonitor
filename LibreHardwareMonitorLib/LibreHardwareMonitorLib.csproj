@@ -13,7 +13,6 @@
     <PackageVersion>$(Version)</PackageVersion>
     <Pack>true</Pack>
     <RepositoryUrl>https://github.com/LibreHardwareMonitor/LibreHardwareMonitor</RepositoryUrl>
-    <Platforms>AnyCPU;x64;x86</Platforms>
     <LangVersion>latest</LangVersion>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)'=='Debug'">
