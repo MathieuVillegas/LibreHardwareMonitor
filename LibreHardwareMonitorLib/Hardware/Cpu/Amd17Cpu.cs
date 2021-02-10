@@ -23,17 +23,13 @@ namespace LibreHardwareMonitor.Hardware.CPU
 
         public Amd17Cpu(int processorIndex, CpuId[][] cpuId, ISettings settings) : base(processorIndex, cpuId, settings)
         {
-            // add all numa nodes
+            // Add all numa nodes.
             // Register ..1E_2, [10:8] + 1
             _processor = new Processor(this);
 
-            // add all numa nodes
-            const int initialCoreId = 1_000_000_000;
-
+            // Add all numa nodes.
             int coreId = 0;
-            //int coreId = 1;
-
-            int lastCoreId = initialCoreId;
+            int lastCoreId = -1; // Invalid id.
 
             // Ryzen 3000's skip some core ids.
             // So start at 1 and count upwards when the read core changes.
@@ -41,23 +37,23 @@ namespace LibreHardwareMonitor.Hardware.CPU
             {
                 CpuId thread = cpu[0];
 
-                // coreID
-                // Register ..1E_1, [7:0]
+                // CPUID_Fn8000001E_EBX, Register ..1E_1, [7:0]
+                // threads per core =  CPUID_Fn8000001E_EBX[15:8] + 1
+                // CoreId: core ID =  CPUID_Fn8000001E_EBX[7:0]
                 int coreIdRead = (int)(thread.ExtData[0x1e, 1] & 0xff);
 
-                // nodeID
-                // Register ..1E_2, [7:0]
+                // CPUID_Fn8000001E_ECX, Node Identifiers, Register ..1E_2
+                // NodesPerProcessor =  CPUID_Fn8000001E_ECX[10:8]
+                // nodeID =  CPUID_Fn8000001E_ECX[7:0]
                 int nodeId = (int)(thread.ExtData[0x1e, 2] & 0xff);
 
-                _processor.AppendThread(thread, nodeId, coreId);
-
-                // lastCoreId != initialCoreId force to skip first incremetn every time so a core is skipped so I commented it
-                if (/*lastCoreId != initialCoreId &&*/ coreIdRead != lastCoreId)
+                if (coreIdRead != lastCoreId)
                 {
                     coreId++;
                 }
-
                 lastCoreId = coreIdRead;
+
+                _processor.AppendThread(thread, nodeId, coreId);
             }
 
             Update();
