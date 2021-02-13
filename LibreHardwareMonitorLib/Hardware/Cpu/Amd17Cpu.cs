@@ -47,13 +47,14 @@ namespace LibreHardwareMonitor.Hardware.CPU
                 // nodeID =  CPUID_Fn8000001E_ECX[7:0]
                 int nodeId = (int)(thread.ExtData[0x1e, 2] & 0xff);
 
+                _processor.AppendThread(thread, nodeId, coreId);
                 if (coreIdRead != lastCoreId)
                 {
                     coreId++;
                 }
                 lastCoreId = coreIdRead;
 
-                _processor.AppendThread(thread, nodeId, coreId);
+                // _processor.AppendThread(thread, nodeId, coreId);
             }
 
             Update();
