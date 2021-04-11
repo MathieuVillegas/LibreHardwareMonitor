@@ -356,6 +356,7 @@ namespace LibreHardwareMonitor.Hardware.Motherboard
                 case Chip.NCT6796DR:
                 case Chip.NCT6797D:
                 case Chip.NCT6798D:
+                case Chip.NCT6683D:
                 {
                     GetNuvotonConfigurationD(superIO, manufacturer, model, v, t, f, c);
 
@@ -1330,6 +1331,10 @@ namespace LibreHardwareMonitor.Hardware.Motherboard
                             f.Add(new Fan("System Fan #1", 1));
                             f.Add(new Fan("System Fan #2", 2));
                             f.Add(new Fan("System Fan #3", 3));
+                            c.Add(new Ctrl("CPU Fan", 0));
+                            c.Add(new Ctrl("System Fan #1", 1));
+                            c.Add(new Ctrl("System Fan #2", 2));
+                            c.Add(new Ctrl("System Fan #3", 3));                            
 
                             break;
                         }
@@ -2011,7 +2016,6 @@ namespace LibreHardwareMonitor.Hardware.Motherboard
 
                             break;
                         }
-
                         case Model.X399_Phantom_Gaming_6: //NCT6779D
                         {
                             v.Add(new Voltage("Vcore", 0, 10, 10));
@@ -2044,6 +2048,79 @@ namespace LibreHardwareMonitor.Hardware.Motherboard
 
                             break;
                         }
+                        case Model.X570_Taichi:
+                        {
+                            v.Add(new Voltage("Vcore", 0, 10, 10));
+                            v.Add(new Voltage("Voltage #2", 1, true));
+                            v.Add(new Voltage("AVCC", 2, 34, 34));
+                            v.Add(new Voltage("+3.3V", 3, 34, 34));
+                            v.Add(new Voltage("Voltage #5", 4, true));
+                            v.Add(new Voltage("Voltage #6", 5, true));
+                            v.Add(new Voltage("Voltage #7", 6, true));
+                            v.Add(new Voltage("3VSB", 7, 34, 34));
+                            v.Add(new Voltage("VBat", 8, 34, 34));
+                            v.Add(new Voltage("VTT", 9));
+                            v.Add(new Voltage("Voltage #11", 10, true));
+                            v.Add(new Voltage("Voltage #12", 11, true));
+                            v.Add(new Voltage("Voltage #13", 12, true));
+                            v.Add(new Voltage("Voltage #14", 13, true));
+                            v.Add(new Voltage("Voltage #15", 14, true));
+                            
+                            t.Add(new Temperature("Motherboard", 2));
+                            t.Add(new Temperature("CPU", 8));
+                            t.Add(new Temperature("SB (Chipset)", 9));
+
+                            f.Add(new Fan("Chassis #3" , 0));
+                            f.Add(new Fan("CPU #1" , 1));
+                            f.Add(new Fan("CPU #2" , 2));
+                            f.Add(new Fan("Chassis #1" , 3));
+                            f.Add(new Fan("Chassis #2" , 4));
+                            f.Add(new Fan("SB Fan" , 5));
+                            f.Add(new Fan("Chassis #4" , 6));
+
+                            c.Add(new Ctrl("Chassis #3" , 0));
+                            c.Add(new Ctrl("CPU #1" , 1));
+                            c.Add(new Ctrl("CPU #2" , 2));
+                            c.Add(new Ctrl("Chassis #1" , 3));
+                            c.Add(new Ctrl("Chassis #2" , 4));
+                            c.Add(new Ctrl("SB Fan" , 5));
+                            c.Add(new Ctrl("Chassis #4" , 6));
+
+                            break;
+                        }                        
+                        case Model.X570_Phantom_Gaming_ITX:
+                        {
+                            v.Add(new Voltage("+12V", 0));
+                            v.Add(new Voltage("+5V", 1));
+                            v.Add(new Voltage("Vcore", 2));
+                            v.Add(new Voltage("Voltage #1", 3));
+                            v.Add(new Voltage("DIMM", 4));
+                            v.Add(new Voltage("CPU I/O", 5));
+                            v.Add(new Voltage("CPU SA", 6));
+                            v.Add(new Voltage("Voltage #2", 7));
+                            v.Add(new Voltage("AVCC3", 8));
+                            v.Add(new Voltage("VTT", 9));
+                            v.Add(new Voltage("VRef", 10));
+                            v.Add(new Voltage("VSB", 11));
+                            v.Add(new Voltage("AVSB", 12));
+                            v.Add(new Voltage("VBat", 13));
+
+                            t.Add(new Temperature("Motherboard", 0));
+                            //t.Add(new Temperature("System", 1)); //Unused
+                            t.Add(new Temperature("CPU", 2));
+                            t.Add(new Temperature("SB (Chipset)", 3));
+                            f.Add(new Fan("CPU Fan #1", 0)); //CPU_FAN1
+                            f.Add(new Fan("Chassis Fan #1", 1)); //CHA_FAN1/WP
+                            f.Add(new Fan("CPU Fan #2", 2)); //CPU_FAN2 (WP)
+                            f.Add(new Fan("Chipset Fan", 3));
+
+                            c.Add(new Ctrl("CPU Fan #1", 0));
+                            c.Add(new Ctrl("Chassis Fan", 1));
+                            c.Add(new Ctrl("CPU Fan #2", 2));
+                            c.Add(new Ctrl("Chipset Fan", 3));
+                            break;
+                        }
+						
                         default:
                         {
                             v.Add(new Voltage("Vcore", 0, 10, 10));

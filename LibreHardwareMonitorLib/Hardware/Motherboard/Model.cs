@@ -32,6 +32,8 @@ namespace LibreHardwareMonitor.Hardware.Motherboard
         X399_Phantom_Gaming_6,
         Z77Pro4M,
         X570_Pro4,
+        X570_Taichi,
+        X570_Phantom_Gaming_ITX,
 
         // ASUS
         CROSSHAIR_III_FORMULA,
