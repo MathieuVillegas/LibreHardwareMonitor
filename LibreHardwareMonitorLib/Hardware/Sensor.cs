@@ -22,7 +22,8 @@ namespace LibreHardwareMonitor.Hardware
         private float? _currentValue;
         private string _name;
         private float _sum;
-        private TimeSpan _valuesTimeWindow = TimeSpan.FromDays(1.0);
+        // set to 0 here to avoid using excessive memory.
+        private TimeSpan _valuesTimeWindow = TimeSpan.Zero; // TimeSpan.FromDays(1.0);
 
         public Sensor(string name, int index, SensorType sensorType, Hardware hardware, ISettings settings) :
             this(name, index, sensorType, hardware, null, settings)
