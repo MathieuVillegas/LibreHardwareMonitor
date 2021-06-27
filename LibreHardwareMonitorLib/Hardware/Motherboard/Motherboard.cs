@@ -8,6 +8,8 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 using LibreHardwareMonitor.Hardware.Motherboard.Lpc;
+using LibreHardwareMonitor.Hardware.Motherboard.Lpc.EC;
+using OperatingSystem = LibreHardwareMonitor.Software.OperatingSystem;
 
 namespace LibreHardwareMonitor.Hardware.Motherboard
 {
@@ -49,7 +51,7 @@ namespace LibreHardwareMonitor.Hardware.Motherboard
 
             _customName = settings.GetValue(new Identifier(Identifier, "name").ToString(), _name);
 
-            if (Software.OperatingSystem.IsUnix)
+            if (OperatingSystem.IsUnix)
             {
                 _lmSensors = new LMSensors();
                 superIO = _lmSensors.SuperIO;
@@ -59,11 +61,20 @@ namespace LibreHardwareMonitor.Hardware.Motherboard
                 _lpcIO = new LpcIO();
                 superIO = _lpcIO.SuperIO;
             }
+            
+            EmbeddedController embeddedController = EmbeddedController.Create(model, settings);
 
-            SubHardware = new IHardware[superIO.Count];
+            SubHardware = new IHardware[superIO.Count + (embeddedController != null ? 1 : 0)];
             for (int i = 0; i < superIO.Count; i++)
                 SubHardware[i] = new SuperIOHardware(this, superIO[i], manufacturer, model, settings);
+
+            if (embeddedController != null)
+                SubHardware[superIO.Count] = embeddedController;
         }
+
+        public event SensorEventHandler SensorAdded;
+
+        public event SensorEventHandler SensorRemoved;
 
         public HardwareType HardwareType
         {
@@ -91,6 +102,8 @@ namespace LibreHardwareMonitor.Hardware.Motherboard
             get { return null; }
         }
 
+        public virtual IDictionary<string, string> Properties => new SortedDictionary<string, string>();
+
         public ISensor[] Sensors
         {
             get { return new ISensor[0]; }
@@ -105,7 +118,7 @@ namespace LibreHardwareMonitor.Hardware.Motherboard
 
         public string GetReport()
         {
-            StringBuilder r = new StringBuilder();
+            StringBuilder r = new();
 
             r.AppendLine("Motherboard");
             r.AppendLine();
@@ -134,10 +147,6 @@ namespace LibreHardwareMonitor.Hardware.Motherboard
             foreach (IHardware hardware in SubHardware)
                 hardware.Accept(visitor);
         }
-
-        public event SensorEventHandler SensorAdded;
-
-        public event SensorEventHandler SensorRemoved;
 
         public void Close()
         {

@@ -42,6 +42,7 @@ namespace LibreHardwareMonitor.UI
                     image = Utilities.EmbeddedResources.GetImage("mainboard.png");
                     break;
                 case HardwareType.SuperIO:
+                case HardwareType.EmbeddedController:
                     image = Utilities.EmbeddedResources.GetImage("chip.png");
                     break;
                 case HardwareType.Memory:
@@ -52,6 +53,9 @@ namespace LibreHardwareMonitor.UI
                     break;
                 case HardwareType.Cooler:
                     image = Utilities.EmbeddedResources.GetImage("fan.png");
+                    break;
+                case HardwareType.Psu:
+                    image = Utilities.EmbeddedResources.GetImage("power-supply.png");
                     break;
                 default:
                     image = new Bitmap(1, 1);
