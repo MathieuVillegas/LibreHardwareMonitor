@@ -610,6 +610,9 @@ namespace LibreHardwareMonitor.UI
                                 case SensorType.Voltage:
                                     format = "{0:F3} V";
                                     break;
+                                case SensorType.Current:
+                                    format = "{0:F3} A";
+                                    break;
                                 case SensorType.Clock:
                                     format = "{0:F0} MHz";
                                     break;
@@ -636,6 +639,9 @@ namespace LibreHardwareMonitor.UI
                                     break;
                                 case SensorType.Factor:
                                     format = "{0:F3}";
+                                    break;
+                                case SensorType.TimeSpan:
+                                    format = "{0:g}";
                                     break;
                             }
 
@@ -683,6 +689,10 @@ namespace LibreHardwareMonitor.UI
                                         break;
                                 }
                                 formatted = result;
+                            }
+                            else if (sensor.SensorType == SensorType.TimeSpan)
+                            {
+                                formatted = string.Format(format, TimeSpan.FromSeconds(sensor.Value.Value));
                             }
                             else
                             {

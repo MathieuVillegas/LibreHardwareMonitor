@@ -641,6 +641,8 @@ namespace LibreHardwareMonitor.Utilities
                     return "fan.png";
                 case HardwareType.Network:
                     return "nic.png";
+                case HardwareType.Psu:
+                    return "power-supply.png";
                 default:
                     return "cpu.png";
             }
@@ -651,6 +653,7 @@ namespace LibreHardwareMonitor.Utilities
             switch (tn.SensorType)
             {
                 case SensorType.Voltage:
+                case SensorType.Current:
                     return "voltage.png";
                 case SensorType.Clock:
                     return "clock.png";

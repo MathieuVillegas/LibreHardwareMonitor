@@ -5,9 +5,16 @@
 // All Rights Reserved.
 
 using System;
+using System.Collections.Generic;
 using System.Globalization;
+using System.Linq;
 using System.Text;
 using LibreHardwareMonitor.Interop;
+using Microsoft.Win32;
+using NvAPIWrapper.GPU;
+using NvAPIWrapper.Native.Exceptions;
+using NvAPIWrapper.Native.GPU;
+using NvAPIWrapper.Native.GPU.Structures;
 
 namespace LibreHardwareMonitor.Hardware.Gpu
 {
@@ -15,101 +22,184 @@ namespace LibreHardwareMonitor.Hardware.Gpu
     {
         private readonly int _adapterIndex;
         private readonly Sensor[] _clocks;
-        private readonly Sensor _control;
-        private readonly NvApi.NvDisplayHandle? _displayHandle;
-        private readonly Sensor _fan;
-        private readonly Control _fanControl;
-        private readonly NvApi.NvPhysicalGpuHandle _handle;
+        private readonly Sensor[] _controls;
+        private readonly Control[] _fanControls;
+        private readonly Sensor[] _fans;
+        private readonly Sensor _gpuDedicatedMemoryUsage;
+        private readonly Sensor[] _gpuNodeUsage;
+        private readonly DateTime[] _gpuNodeUsagePrevTick;
+        private readonly long[] _gpuNodeUsagePrevValue;
+        private readonly Sensor _gpuSharedMemoryUsage;
         private readonly Sensor[] _loads;
-        private readonly Sensor _memoryAvail;
         private readonly Sensor _memoryFree;
-        private readonly Sensor _memoryLoad;
+        private readonly Sensor _memoryTotal;
         private readonly Sensor _memoryUsed;
         private readonly NvidiaML.NvmlDevice? _nvmlDevice;
         private readonly Sensor _pcieThroughputRx;
         private readonly Sensor _pcieThroughputTx;
+        private readonly PhysicalGPU _physicalGpu;
+        private readonly Sensor[] _powers;
         private readonly Sensor _powerUsage;
         private readonly Sensor[] _temperatures;
+        private readonly string _windowsDeviceName;
 
-        public NvidiaGpu(int adapterIndex, NvApi.NvPhysicalGpuHandle handle, NvApi.NvDisplayHandle? displayHandle, ISettings settings)
-            : base(GetName(handle), new Identifier("gpu-nvidia", adapterIndex.ToString(CultureInfo.InvariantCulture)), settings)
+        public NvidiaGpu(int adapterIndex, PhysicalGPU physicalGpu, ISettings settings)
+            : base(GetName(physicalGpu),
+                   new Identifier("gpu-nvidia", adapterIndex.ToString(CultureInfo.InvariantCulture)),
+                   settings)
         {
             _adapterIndex = adapterIndex;
-            _handle = handle;
-            _displayHandle = displayHandle;
+            _physicalGpu = physicalGpu;
 
-            bool hasPciBusId = NvApi.NvAPI_GPU_GetBusId(handle, out uint busId) == NvApi.NvStatus.OK;
+            int busId = -1;
 
-            NvApi.NvGPUThermalSettings thermalSettings = GetThermalSettings();
-            _temperatures = new Sensor[thermalSettings.Count];
-            for (int i = 0; i < _temperatures.Length; i++)
+            try
             {
-                NvApi.NvSensor sensor = thermalSettings.Sensor[i];
-                string name;
-                switch (sensor.Target)
+                busId = physicalGpu.BusInformation.BusId;
+            }
+            catch (Exception e) when (e is NVIDIAApiException or NVIDIANotSupportedException)
+            { }
+
+            try
+            {
+                GPUThermalSensor[] thermalSensors = physicalGpu.ThermalInformation.ThermalSensors.ToArray();
+                _temperatures = new Sensor[thermalSensors.Length];
+
+                for (int i = 0; i < thermalSensors.Length; i++)
                 {
-                    case NvApi.NvThermalTarget.BOARD:
-                        name = "GPU Board";
-                        break;
-                    case NvApi.NvThermalTarget.GPU:
-                        name = "GPU Core";
-                        break;
-                    case NvApi.NvThermalTarget.MEMORY:
-                        name = "GPU Memory";
-                        break;
-                    case NvApi.NvThermalTarget.POWER_SUPPLY:
-                        name = "GPU Power Supply";
-                        break;
-                    case NvApi.NvThermalTarget.UNKNOWN:
-                        name = "GPU Unknown";
-                        break;
-                    default:
-                        name = "GPU";
-                        break;
+                    GPUThermalSensor sensor = thermalSensors[i];
+
+                    string name = sensor.Target switch
+                    {
+                        ThermalSettingsTarget.GPU => "GPU Core",
+                        ThermalSettingsTarget.Memory => "GPU Memory",
+                        ThermalSettingsTarget.PowerSupply => "GPU Power Supply",
+                        ThermalSettingsTarget.Board => "GPU Board",
+                        ThermalSettingsTarget.VisualComputingBoard => "GPU Visual Computing Board",
+                        ThermalSettingsTarget.VisualComputingInlet => "GPU Visual Computing Inlet",
+                        ThermalSettingsTarget.VisualComputingOutlet => "GPU Visual Computing Outlet",
+                        _ => "GPU"
+                    };
+
+                    _temperatures[i] = new Sensor(name, i, SensorType.Temperature, this, new ParameterDescription[0], settings);
+                    ActivateSensor(_temperatures[i]);
+                }
+            }
+            catch (Exception e) when (e is NVIDIAApiException or NVIDIANotSupportedException)
+            { }
+
+            try
+            {
+                KeyValuePair<PublicClockDomain, ClockDomainInfo>[] clocks = physicalGpu.CurrentClockFrequencies.Clocks.OrderBy(x => x.Key).ToArray();
+                _clocks = new Sensor[clocks.Length];
+
+                for (int i = 0; i < clocks.Length; i++)
+                {
+                    KeyValuePair<PublicClockDomain, ClockDomainInfo> clock = clocks[i];
+
+                    string name = clock.Key switch
+                    {
+                        PublicClockDomain.Graphics => "GPU Core",
+                        PublicClockDomain.Memory => "GPU Memory",
+                        PublicClockDomain.Processor => "GPU Shader",
+                        PublicClockDomain.Video => "GPU Video",
+                        _ => null
+                    };
+
+                    _clocks[i] = new Sensor(name, i, SensorType.Clock, this, settings);
+                    ActivateSensor(_clocks[i]);
+                }
+            }
+            catch (Exception e) when (e is NVIDIAApiException or NVIDIANotSupportedException)
+            { }
+
+            try
+            {
+                GPUUsageDomainStatus[] usages = physicalGpu.UsageInformation.UtilizationDomainsStatus.ToArray();
+                _loads = new Sensor[usages.Length + 1];
+
+                for (int i = 0; i < usages.Length; i++)
+                {
+                    string name = usages[i].Domain switch
+                    {
+                        UtilizationDomain.GPU => "GPU Core",
+                        UtilizationDomain.FrameBuffer => "GPU Memory Controller",
+                        UtilizationDomain.VideoEngine => "GPU Video Engine",
+                        UtilizationDomain.BusInterface => "GPU Bus",
+                        _ => null
+                    };
+
+                    _loads[i] = new Sensor(name, i, SensorType.Load, this, settings);
+                    ActivateSensor(_loads[i]);
                 }
 
-                _temperatures[i] = new Sensor(name, i, SensorType.Temperature, this, new ParameterDescription[0], settings);
-                ActivateSensor(_temperatures[i]);
+                _loads[_loads.Length - 1] = new Sensor("GPU Memory", _loads.Length - 1, SensorType.Load, this, settings);
+                ActivateSensor(_loads[_loads.Length - 1]);
             }
+            catch (Exception e) when (e is NVIDIAApiException or NVIDIANotSupportedException)
+            { }
 
-            if (NvApi.NvAPI_GPU_GetTachReading != null && NvApi.NvAPI_GPU_GetTachReading(handle, out _) == NvApi.NvStatus.OK)
-                _fan = new Sensor("GPU", 0, SensorType.Fan, this, settings);
-            else if (NvApi.NvAPI_GPU_ClientFanCoolersGetStatus != null && GetCoolerSettings().Count > 0)
-                _fan = new Sensor("GPU", 0, SensorType.Fan, this, settings);
-
-            _clocks = new Sensor[3];
-            _clocks[0] = new Sensor("GPU Core", 0, SensorType.Clock, this, settings);
-            _clocks[1] = new Sensor("GPU Memory", 1, SensorType.Clock, this, settings);
-            _clocks[2] = new Sensor("GPU Shader", 2, SensorType.Clock, this, settings);
-            for (int i = 0; i < _clocks.Length; i++)
-                ActivateSensor(_clocks[i]);
-
-            _loads = new Sensor[4];
-            _loads[0] = new Sensor("GPU Core", 0, SensorType.Load, this, settings);
-            _loads[1] = new Sensor("GPU Memory Controller", 1, SensorType.Load, this, settings);
-            _loads[2] = new Sensor("GPU Video Engine", 2, SensorType.Load, this, settings);
-            _loads[3] = new Sensor("GPU Bus", 4, SensorType.Load, this, settings);
-
-            _memoryLoad = new Sensor("GPU Memory", 3, SensorType.Load, this, settings);
-            _memoryFree = new Sensor("GPU Memory Free", 1, SensorType.SmallData, this, settings);
-            _memoryUsed = new Sensor("GPU Memory Used", 2, SensorType.SmallData, this, settings);
-            _memoryAvail = new Sensor("GPU Memory Total", 3, SensorType.SmallData, this, settings);
-
-            _control = new Sensor("GPU Fan", 0, SensorType.Control, this, settings);
-
-            NvApi.NvGPUCoolerSettings coolerSettings = GetCoolerSettings();
-            if (coolerSettings.Count > 0)
+            try
             {
-                _fanControl = new Control(_control, settings, coolerSettings.Cooler[0].DefaultMin, coolerSettings.Cooler[0].DefaultMax);
-                _fanControl.ControlModeChanged += ControlModeChanged;
-                _fanControl.SoftwareControlValueChanged += SoftwareControlValueChanged;
-                ControlModeChanged(_fanControl);
-                _control.Control = _fanControl;
+                GPUCooler[] coolers = physicalGpu.CoolerInformation.Coolers.ToArray();
+                if (coolers.Length > 0)
+                {
+                    _controls = new Sensor[coolers.Length];
+                    _fanControls = new Control[coolers.Length];
+                    _fans = new Sensor[coolers.Length];
+
+                    for (int i = 0; i < coolers.Length; i++)
+                    {
+                        GPUCooler cooler = coolers[i];
+                        string name = "GPU Fan" + (coolers.Length > 1 ? " " + (cooler.CoolerId) : string.Empty);
+
+                        _fans[i] = new Sensor(name, i, SensorType.Fan, this, settings);
+                        ActivateSensor(_fans[i]);
+
+                        _controls[i] = new Sensor(name, i, SensorType.Control, this, settings);
+                        ActivateSensor(_controls[i]);
+
+                        _fanControls[i] = new Control(_controls[i], settings, cooler.DefaultMinimumLevel, cooler.DefaultMaximumLevel);
+                        _fanControls[i].ControlModeChanged += ControlModeChanged;
+                        _fanControls[i].SoftwareControlValueChanged += SoftwareControlValueChanged;
+                        _controls[i].Control = _fanControls[i];
+
+                        ControlModeChanged(_fanControls[i]);
+                    }
+                }
             }
+            catch (Exception e) when (e is NVIDIAApiException or NVIDIANotSupportedException)
+            { }
+
+            try
+            {
+                GPUPowerTopologyStatus[] powerTopologies = physicalGpu.PowerTopologyInformation.PowerTopologyEntries.ToArray();
+                if (powerTopologies.Length > 0)
+                {
+                    _powers = new Sensor[powerTopologies.Length];
+
+                    for (int i = 0; i < powerTopologies.Length; i++)
+                    {
+                        GPUPowerTopologyStatus powerTopology = powerTopologies[i];
+
+                        string name = powerTopology.Domain switch
+                        {
+                            PowerTopologyDomain.GPU => "GPU Power",
+                            PowerTopologyDomain.Board => "GPU Board Power",
+                            _ => null
+                        };
+
+                        _powers[i] = new Sensor(name, i + (_loads?.Length ?? 0), SensorType.Load, this, settings);
+                        ActivateSensor(_powers[i]);
+                    }
+                }
+            }
+            catch (Exception e) when (e is NVIDIAApiException or NVIDIANotSupportedException)
+            { }
 
             if (NvidiaML.IsAvailable || NvidiaML.Initialize())
             {
-                if (hasPciBusId)
+                if (busId != -1)
                     _nvmlDevice = NvidiaML.NvmlDeviceGetHandleByPciBusId($" 0000:{busId:X2}:00.0") ?? NvidiaML.NvmlDeviceGetHandleByIndex(_adapterIndex);
                 else
                     _nvmlDevice = NvidiaML.NvmlDeviceGetHandleByIndex(_adapterIndex);
@@ -120,8 +210,110 @@ namespace LibreHardwareMonitor.Hardware.Gpu
 
                     _pcieThroughputRx = new Sensor("GPU PCIe Rx", 0, SensorType.Throughput, this, settings);
                     _pcieThroughputTx = new Sensor("GPU PCIe Tx", 1, SensorType.Throughput, this, settings);
+
+                    if (!Software.OperatingSystem.IsUnix)
+                    {
+                        NvidiaML.NvmlPciInfo? pciInfo = NvidiaML.NvmlDeviceGetPciInfo(_nvmlDevice.Value);
+
+                        if (pciInfo is { } pci)
+                        {
+                            string[] deviceIdentifiers = D3DDisplayDevice.GetDeviceIdentifiers();
+                            if (deviceIdentifiers != null)
+                            {
+                                foreach (string deviceIdentifier in deviceIdentifiers)
+                                {
+                                    if (deviceIdentifier.IndexOf("VEN_" + pci.pciVendorId.ToString("X"), StringComparison.OrdinalIgnoreCase) != -1 &&
+                                        deviceIdentifier.IndexOf("DEV_" + pci.pciDeviceId.ToString("X"), StringComparison.OrdinalIgnoreCase) != -1 &&
+                                        deviceIdentifier.IndexOf("SUBSYS_" + pci.pciSubSystemId.ToString("X"), StringComparison.OrdinalIgnoreCase) != -1)
+                                    {
+                                        bool isMatch = false;
+
+                                        try
+                                        {
+                                            if (Registry.GetValue(@"HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\nvlddmkm\Enum", adapterIndex.ToString(), null) is string adapterPnpId)
+                                            {
+                                                if (deviceIdentifier.IndexOf(adapterPnpId.Replace('\\', '#'), StringComparison.OrdinalIgnoreCase) != -1)
+                                                    isMatch = true;
+                                            }
+                                        }
+                                        catch
+                                        {
+                                            // Ignored.
+                                        }
+
+                                        if (!isMatch)
+                                        {
+                                            try
+                                            {
+                                                string path = deviceIdentifier;
+                                                if (path.StartsWith(@"\\?\"))
+                                                    path = path.Substring(4);
+
+                                                path = path.Replace('#', '\\');
+                                                int index = path.IndexOf('{');
+                                                if (index != -1)
+                                                    path = path.Substring(0, index);
+
+                                                path = @"HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Enum\" + path;
+
+                                                if (Registry.GetValue(path, "LocationInformation", null) is string locationInformation)
+                                                {
+                                                    // For example:
+                                                    // @System32\drivers\pci.sys,#65536;PCI bus %1, device %2, function %3;(38,0,0)
+
+                                                    index = locationInformation.IndexOf('(');
+                                                    if (index != -1)
+                                                    {
+                                                        index++;
+                                                        int secondIndex = locationInformation.IndexOf(',', index);
+                                                        if (secondIndex != -1)
+                                                        {
+                                                            string bus = locationInformation.Substring(index, secondIndex - index);
+
+                                                            if (pci.bus.ToString() == bus)
+                                                                isMatch = true;
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                            catch
+                                            {
+                                                // Ignored.
+                                            }
+                                        }
+
+                                        if (isMatch && D3DDisplayDevice.GetDeviceInfoByIdentifier(deviceIdentifier, out D3DDisplayDevice.D3DDeviceInfo deviceInfo))
+                                        {
+                                            int nodeSensorIndex = (_loads?.Length ?? 0) + (_powers?.Length ?? 0);
+                                            int memorySensorIndex = 3; // There are three normal GPU memory sensors.
+
+                                            _windowsDeviceName = deviceIdentifier;
+
+                                            _gpuDedicatedMemoryUsage = new Sensor("D3D Dedicated Memory Used", memorySensorIndex++, SensorType.SmallData, this, settings);
+                                            _gpuSharedMemoryUsage = new Sensor("D3D Shared Memory Used", memorySensorIndex, SensorType.SmallData, this, settings);
+
+                                            _gpuNodeUsage = new Sensor[deviceInfo.Nodes.Length];
+                                            _gpuNodeUsagePrevValue = new long[deviceInfo.Nodes.Length];
+                                            _gpuNodeUsagePrevTick = new DateTime[deviceInfo.Nodes.Length];
+
+                                            foreach (D3DDisplayDevice.D3DDeviceNodeInfo node in deviceInfo.Nodes.OrderBy(x => x.Name))
+                                            {
+                                                _gpuNodeUsage[node.Id] = new Sensor(node.Name, nodeSensorIndex++, SensorType.Load, this, settings);
+                                                _gpuNodeUsagePrevValue[node.Id] = node.RunningTime;
+                                                _gpuNodeUsagePrevTick[node.Id] = node.QueryTime;
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
             }
+
+            _memoryFree = new Sensor("GPU Memory Free", 0, SensorType.SmallData, this, settings);
+            _memoryUsed = new Sensor("GPU Memory Used", 1, SensorType.SmallData, this, settings);
+            _memoryTotal = new Sensor("GPU Memory Total", 2, SensorType.SmallData, this, settings);
 
             Update();
         }
@@ -131,172 +323,141 @@ namespace LibreHardwareMonitor.Hardware.Gpu
             get { return HardwareType.GpuNvidia; }
         }
 
-        private static string GetName(NvApi.NvPhysicalGpuHandle handle)
+        private static string GetName(PhysicalGPU physicalGpu)
         {
-            if (NvApi.NvAPI_GPU_GetFullName(handle, out string gpuName) == NvApi.NvStatus.OK)
+            string gpuName = null;
+
+            try
             {
-                return "NVIDIA " + gpuName.Trim();
+                gpuName = physicalGpu.FullName?.Trim();
             }
+            catch (NVIDIAApiException)
+            { }
 
-            return "NVIDIA";
-        }
+            gpuName ??= "Unknown";
 
-        private NvApi.NvGPUThermalSettings GetThermalSettings()
-        {
-            NvApi.NvGPUThermalSettings settings = new NvApi.NvGPUThermalSettings
-            {
-                Version = NvApi.GPU_THERMAL_SETTINGS_VER, Count = NvApi.MAX_THERMAL_SENSORS_PER_GPU, Sensor = new NvApi.NvSensor[NvApi.MAX_THERMAL_SENSORS_PER_GPU]
-            };
+            if (gpuName.StartsWith("NVIDIA", StringComparison.OrdinalIgnoreCase))
+                return gpuName;
 
-            if (!(NvApi.NvAPI_GPU_GetThermalSettings != null && NvApi.NvAPI_GPU_GetThermalSettings(_handle, (int)NvApi.NvThermalTarget.ALL, ref settings) == NvApi.NvStatus.OK))
-            {
-                settings.Count = 0;
-            }
 
-            return settings;
-        }
-
-        private NvApi.NvFanCoolersStatus GetFanCoolersStatus()
-        {
-            var coolers = new NvApi.NvFanCoolersStatus { Version = NvApi.GPU_FAN_COOLERS_STATUS_VER, Items = new NvApi.NvFanCoolersStatusItem[NvApi.MAX_FAN_COOLERS_STATUS_ITEMS] };
-
-            if (!(NvApi.NvAPI_GPU_ClientFanCoolersGetStatus != null && NvApi.NvAPI_GPU_ClientFanCoolersGetStatus(_handle, ref coolers) == NvApi.NvStatus.OK))
-            {
-                coolers.Count = 0;
-            }
-
-            return coolers;
-        }
-
-        private NvApi.NvGPUCoolerSettings GetCoolerSettings()
-        {
-            NvApi.NvGPUCoolerSettings settings = new NvApi.NvGPUCoolerSettings { Version = NvApi.GPU_COOLER_SETTINGS_VER, Cooler = new NvApi.NvCooler[NvApi.MAX_COOLER_PER_GPU] };
-            if (!(NvApi.NvAPI_GPU_GetCoolerSettings != null && NvApi.NvAPI_GPU_GetCoolerSettings(_handle, 0, ref settings) == NvApi.NvStatus.OK))
-            {
-                settings.Count = 0;
-            }
-
-            return settings;
-        }
-
-        private uint[] GetClocks()
-        {
-            NvApi.NvClocks allClocks = new NvApi.NvClocks { Version = NvApi.GPU_CLOCKS_VER, Clock = new uint[NvApi.MAX_CLOCKS_PER_GPU] };
-            if (NvApi.NvAPI_GPU_GetAllClocks != null && NvApi.NvAPI_GPU_GetAllClocks(_handle, ref allClocks) == NvApi.NvStatus.OK)
-            {
-                return allClocks.Clock;
-            }
-
-            return null;
+            return "NVIDIA " + gpuName.Trim();
         }
 
         public override void Update()
         {
-            NvApi.NvGPUThermalSettings settings = GetThermalSettings();
-            // settings.Count is 0 when no valid data available, this happens when you try to read out this value with a high polling interval.
-            if (settings.Count > 0)
+            if (_windowsDeviceName != null && D3DDisplayDevice.GetDeviceInfoByIdentifier(_windowsDeviceName, out D3DDisplayDevice.D3DDeviceInfo deviceInfo))
             {
-                foreach (Sensor sensor in _temperatures)
-                    sensor.Value = settings.Sensor[sensor.Index].CurrentTemp;
-            }
+                _gpuDedicatedMemoryUsage.Value = 1f * deviceInfo.GpuDedicatedUsed / 1024 / 1024;
+                _gpuSharedMemoryUsage.Value = 1f * deviceInfo.GpuSharedUsed / 1024 / 1024;
+                ActivateSensor(_gpuDedicatedMemoryUsage);
+                ActivateSensor(_gpuSharedMemoryUsage);
 
-            bool readTach = false;
-            if (_fan != null)
-            {
-                if (NvApi.NvAPI_GPU_GetTachReading(_handle, out int value) == NvApi.NvStatus.OK)
+                foreach (D3DDisplayDevice.D3DDeviceNodeInfo node in deviceInfo.Nodes)
                 {
-                    _fan.Value = value;
-                    ActivateSensor(_fan);
+                    long runningTimeDiff = node.RunningTime - _gpuNodeUsagePrevValue[node.Id];
+                    long timeDiff = node.QueryTime.Ticks - _gpuNodeUsagePrevTick[node.Id].Ticks;
 
-                    readTach = true;
+                    _gpuNodeUsage[node.Id].Value = 100f * runningTimeDiff / timeDiff;
+                    _gpuNodeUsagePrevValue[node.Id] = node.RunningTime;
+                    _gpuNodeUsagePrevTick[node.Id] = node.QueryTime;
+                    ActivateSensor(_gpuNodeUsage[node.Id]);
                 }
             }
 
-            uint[] values = GetClocks();
-            if (values != null)
+            try
             {
-                _clocks[1].Value = 0.001f * values[8];
-                if (values[30] != 0)
+                if (_temperatures is { Length: > 0 })
                 {
-                    _clocks[0].Value = 0.0005f * values[30];
-                    _clocks[2].Value = 0.001f * values[30];
-                }
-                else
-                {
-                    _clocks[0].Value = 0.001f * values[0];
-                    _clocks[2].Value = 0.001f * values[14];
-                }
-            }
-
-            NvApi.NvPStates states = new NvApi.NvPStates { Version = NvApi.GPU_PSTATES_VER, PStates = new NvApi.NvPState[NvApi.MAX_PSTATES_PER_GPU] };
-            if (NvApi.NvAPI_GPU_GetPStates != null && NvApi.NvAPI_GPU_GetPStates(_handle, ref states) == NvApi.NvStatus.OK)
-            {
-                for (int i = 0; i < _loads.Length; i++)
-                {
-                    if (states.PStates[i].Present)
+                    GPUThermalSensor[] thermalSensors = _physicalGpu.ThermalInformation.ThermalSensors.ToArray();
+                    for (int i = 0; i < thermalSensors.Length; i++)
                     {
-                        _loads[i].Value = states.PStates[i].Percentage;
-                        ActivateSensor(_loads[i]);
+                        GPUThermalSensor sensor = thermalSensors[i];
+                        _temperatures[i].Value = sensor.CurrentTemperature;
                     }
                 }
             }
-            else
+            catch (Exception e) when (e is NVIDIAApiException or NVIDIANotSupportedException)
+            { }
+
+            try
             {
-                NvApi.NvUsages usages = new NvApi.NvUsages { Version = NvApi.GPU_USAGES_VER, Usage = new uint[NvApi.MAX_USAGES_PER_GPU] };
-                if (NvApi.NvAPI_GPU_GetUsages != null && NvApi.NvAPI_GPU_GetUsages(_handle, ref usages) == NvApi.NvStatus.OK)
+                if (_clocks is { Length: > 0 })
                 {
-                    _loads[0].Value = usages.Usage[2];
-                    _loads[1].Value = usages.Usage[6];
-                    _loads[2].Value = usages.Usage[10];
-                    for (int i = 0; i < 3; i++)
-                        ActivateSensor(_loads[i]);
-                }
-            }
-
-            bool readCoolerSettings = false;
-            NvApi.NvGPUCoolerSettings coolerSettings = GetCoolerSettings();
-            if (coolerSettings.Count > 0)
-            {
-                _control.Value = coolerSettings.Cooler[0].CurrentLevel;
-                ActivateSensor(_control);
-
-                readCoolerSettings = true;
-            }
-
-            if (!readTach || !readCoolerSettings)
-            {
-                NvApi.NvFanCoolersStatus coolersStatus = GetFanCoolersStatus();
-                if (coolersStatus.Count > 0)
-                {
-                    if (!readCoolerSettings)
+                    KeyValuePair<PublicClockDomain, ClockDomainInfo>[] clocks = _physicalGpu.CurrentClockFrequencies.Clocks.OrderBy(x => x.Key).ToArray();
+                    for (int i = 0; i < clocks.Length; i++)
                     {
-                        _control.Value = coolersStatus.Items[0].CurrentLevel;
-                        ActivateSensor(_control);
-                    }
-
-                    if (!readTach && _fan != null)
-                    {
-                        _fan.Value = coolersStatus.Items[0].CurrentRpm;
-                        ActivateSensor(_fan);
+                        KeyValuePair<PublicClockDomain, ClockDomainInfo> clock = clocks[i];
+                        _clocks[i].Value = clock.Value.Frequency / 1000f;
                     }
                 }
             }
+            catch (Exception e) when (e is NVIDIAApiException or NVIDIANotSupportedException)
+            { }
 
-            NvApi.NvMemoryInfo memoryInfo = new NvApi.NvMemoryInfo { Version = NvApi.GPU_MEMORY_INFO_VER, Values = new uint[NvApi.MAX_MEMORY_VALUES_PER_GPU] };
-            if (NvApi.NvAPI_GPU_GetMemoryInfo != null && _displayHandle.HasValue && NvApi.NvAPI_GPU_GetMemoryInfo(_displayHandle.Value, ref memoryInfo) == NvApi.NvStatus.OK)
+            GPUMemoryInformation memoryInformation = _physicalGpu.MemoryInformation;
+
+            try
             {
-                uint totalMemory = memoryInfo.Values[0];
-                uint freeMemory = memoryInfo.Values[4];
-                float usedMemory = Math.Max(totalMemory - freeMemory, 0);
-                _memoryFree.Value = (float)freeMemory / 1024;
-                _memoryAvail.Value = (float)totalMemory / 1024;
-                _memoryUsed.Value = usedMemory / 1024;
-                _memoryLoad.Value = 100f * usedMemory / totalMemory;
-                ActivateSensor(_memoryAvail);
+                GPUUsageDomainStatus[] usages = _physicalGpu.UsageInformation.UtilizationDomainsStatus.ToArray();
+                for (int i = 0; i < usages.Length; i++)
+                    _loads[i].Value = usages[i].Percentage;
+
+                uint current = memoryInformation.CurrentAvailableDedicatedVideoMemoryInkB;
+                uint total = memoryInformation.DedicatedVideoMemoryInkB;
+
+                _loads[_loads.Length - 1].Value = 100f * (total - current) / total;
+            }
+            catch (Exception e) when (e is NVIDIAApiException or NVIDIANotSupportedException)
+            { }
+
+            try
+            {
+                GPUCooler[] coolers = _physicalGpu.CoolerInformation.Coolers.ToArray();
+                if (coolers.Length > 0)
+                {
+                    for (int i = 0; i < coolers.Length; i++)
+                    {
+                        GPUCooler cooler = coolers[i];
+
+                        _fans[i].Value = cooler.CurrentFanSpeedInRPM;
+                        _controls[i].Value = cooler.CurrentLevel;
+                    }
+                }
+            }
+            catch (Exception e) when (e is NVIDIAApiException or NVIDIANotSupportedException)
+            { }
+
+            try
+            {
+                GPUPowerTopologyStatus[] powerTopologies = _physicalGpu.PowerTopologyInformation.PowerTopologyEntries.ToArray();
+                if (powerTopologies.Length > 0)
+                {
+                    for (int i = 0; i < powerTopologies.Length; i++)
+                    {
+                        GPUPowerTopologyStatus powerTopology = powerTopologies[i];
+                        _powers[i].Value = powerTopology.PowerUsageInPercent;
+                    }
+                }
+            }
+            catch (Exception e) when (e is NVIDIAApiException or NVIDIANotSupportedException)
+            { }
+
+            try
+            {
+                uint current = memoryInformation.CurrentAvailableDedicatedVideoMemoryInkB;
+                uint total = memoryInformation.DedicatedVideoMemoryInkB;
+
+                _memoryTotal.Value = total / 1024;
+                ActivateSensor(_memoryTotal);
+
+                _memoryUsed.Value = current / 1024;
                 ActivateSensor(_memoryUsed);
+
+                _memoryFree.Value = (total - current) / 1024;
                 ActivateSensor(_memoryFree);
-                ActivateSensor(_memoryLoad);
             }
+            catch (Exception e) when (e is NVIDIAApiException or NVIDIANotSupportedException)
+            { }
 
             if (NvidiaML.IsAvailable && _nvmlDevice.HasValue)
             {
@@ -326,301 +487,207 @@ namespace LibreHardwareMonitor.Hardware.Gpu
 
         public override string GetReport()
         {
-            StringBuilder r = new StringBuilder();
+            StringBuilder r = new();
 
             r.AppendLine("Nvidia GPU");
             r.AppendLine();
             r.AppendFormat("Name: {0}{1}", _name, Environment.NewLine);
             r.AppendFormat("Index: {0}{1}", _adapterIndex, Environment.NewLine);
 
-            if (_displayHandle.HasValue && NvApi.NvAPI_GetDisplayDriverVersion != null)
+            try
             {
-                NvApi.NvDisplayDriverVersion driverVersion = new NvApi.NvDisplayDriverVersion { Version = NvApi.DISPLAY_DRIVER_VERSION_VER };
-                if (NvApi.NvAPI_GetDisplayDriverVersion(_displayHandle.Value, ref driverVersion) == NvApi.NvStatus.OK)
-                {
-                    r.Append("Driver Version: ");
-                    r.Append(driverVersion.DriverVersion / 100);
-                    r.Append(".");
-                    r.Append((driverVersion.DriverVersion % 100).ToString("00", CultureInfo.InvariantCulture));
-                    r.AppendLine();
-                    r.Append("Driver Branch: ");
-                    r.AppendLine(driverVersion.BuildBranch);
-                }
+                PCIIdentifiers pciIdentifiers = _physicalGpu.BusInformation.PCIIdentifiers;
+                r.Append("DeviceID: 0x");
+                r.AppendLine(pciIdentifiers.DeviceId.ToString("X", CultureInfo.InvariantCulture));
+                r.Append("SubSystemID: 0x");
+                r.AppendLine(pciIdentifiers.SubSystemId.ToString("X", CultureInfo.InvariantCulture));
+                r.Append("RevisionID: 0x");
+                r.AppendLine(pciIdentifiers.RevisionId.ToString("X", CultureInfo.InvariantCulture));
+                r.Append("ExtDeviceID: 0x");
+                r.AppendLine(pciIdentifiers.ExternalDeviceId.ToString("X", CultureInfo.InvariantCulture));
+                r.AppendLine();
             }
+            catch (Exception e) when (e is NVIDIAApiException or NVIDIANotSupportedException)
+            { }
 
-            r.AppendLine();
-
-            if (NvApi.NvAPI_GPU_GetPCIIdentifiers != null)
+            try
             {
-                NvApi.NvStatus status = NvApi.NvAPI_GPU_GetPCIIdentifiers(_handle, out uint deviceId, out uint subSystemId, out uint revisionId, out uint extDeviceId);
-                if (status == NvApi.NvStatus.OK)
-                {
-                    r.Append("DeviceID: 0x");
-                    r.AppendLine(deviceId.ToString("X", CultureInfo.InvariantCulture));
-                    r.Append("SubSystemID: 0x");
-                    r.AppendLine(subSystemId.ToString("X", CultureInfo.InvariantCulture));
-                    r.Append("RevisionID: 0x");
-                    r.AppendLine(revisionId.ToString("X", CultureInfo.InvariantCulture));
-                    r.Append("ExtDeviceID: 0x");
-                    r.AppendLine(extDeviceId.ToString("X", CultureInfo.InvariantCulture));
-                    r.AppendLine();
-                }
-            }
+                GPUThermalSensor[] thermalSensors = _physicalGpu.ThermalInformation.ThermalSensors.ToArray();
 
-            if (NvApi.NvAPI_GPU_GetThermalSettings != null)
-            {
-                NvApi.NvGPUThermalSettings settings = new NvApi.NvGPUThermalSettings
-                {
-                    Version = NvApi.GPU_THERMAL_SETTINGS_VER, Count = NvApi.MAX_THERMAL_SENSORS_PER_GPU, Sensor = new NvApi.NvSensor[NvApi.MAX_THERMAL_SENSORS_PER_GPU]
-                };
-
-                NvApi.NvStatus status = NvApi.NvAPI_GPU_GetThermalSettings(_handle, (int)NvApi.NvThermalTarget.ALL, ref settings);
                 r.AppendLine("Thermal Settings");
                 r.AppendLine();
-                if (status == NvApi.NvStatus.OK)
+
+                for (int i = 0; i < thermalSensors.Length; i++)
                 {
-                    for (int i = 0; i < settings.Count; i++)
-                    {
-                        r.AppendFormat(" Sensor[{0}].Controller: {1}{2}", i, settings.Sensor[i].Controller, Environment.NewLine);
-                        r.AppendFormat(" Sensor[{0}].DefaultMinTemp: {1}{2}", i, settings.Sensor[i].DefaultMinTemp, Environment.NewLine);
-                        r.AppendFormat(" Sensor[{0}].DefaultMaxTemp: {1}{2}", i, settings.Sensor[i].DefaultMaxTemp, Environment.NewLine);
-                        r.AppendFormat(" Sensor[{0}].CurrentTemp: {1}{2}", i, settings.Sensor[i].CurrentTemp, Environment.NewLine);
-                        r.AppendFormat(" Sensor[{0}].Target: {1}{2}", i, settings.Sensor[i].Target, Environment.NewLine);
-                    }
-                }
-                else
-                {
-                    r.Append(" Status: ");
-                    r.AppendLine(status.ToString());
+                    r.AppendFormat(" Sensor[{0}].Target: {1}{2}", i, thermalSensors[i].Target, Environment.NewLine);
+                    r.AppendFormat(" Sensor[{0}].SensorId: {1}{2}", i, thermalSensors[i].SensorId, Environment.NewLine);
+                    r.AppendFormat(" Sensor[{0}].DefaultMinimumTemperature: {1}{2}", i, thermalSensors[i].DefaultMinimumTemperature, Environment.NewLine);
+                    r.AppendFormat(" Sensor[{0}].DefaultMaximumTemperature: {1}{2}", i, thermalSensors[i].DefaultMaximumTemperature, Environment.NewLine);
+                    r.AppendFormat(" Sensor[{0}].CurrentTemperature: {1}{2}", i, thermalSensors[i].CurrentTemperature, Environment.NewLine);
                 }
 
                 r.AppendLine();
             }
+            catch (Exception e) when (e is NVIDIAApiException or NVIDIANotSupportedException)
+            { }
 
-            if (NvApi.NvAPI_GPU_GetAllClocks != null)
+            try
             {
-                NvApi.NvClocks allClocks = new NvApi.NvClocks { Version = NvApi.GPU_CLOCKS_VER, Clock = new uint[NvApi.MAX_CLOCKS_PER_GPU] };
-                NvApi.NvStatus status = NvApi.NvAPI_GPU_GetAllClocks(_handle, ref allClocks);
+                KeyValuePair<PublicClockDomain, ClockDomainInfo>[] clocks = _physicalGpu.CurrentClockFrequencies.Clocks.OrderBy(x => x.Key).ToArray();
 
                 r.AppendLine("Clocks");
                 r.AppendLine();
-                if (status == NvApi.NvStatus.OK)
+
+                for (int i = 0; i < clocks.Length; i++)
                 {
-                    for (int i = 0; i < allClocks.Clock.Length; i++)
-                        if (allClocks.Clock[i] > 0)
-                        {
-                            r.AppendFormat(" Clock[{0}]: {1}{2}", i, allClocks.Clock[i], Environment.NewLine);
-                        }
-                }
-                else
-                {
-                    r.Append(" Status: ");
-                    r.AppendLine(status.ToString());
+                    KeyValuePair<PublicClockDomain, ClockDomainInfo> clock = clocks[i];
+                    r.AppendFormat(" Clock[{0}]: {1}{2}", i, clock, Environment.NewLine);
                 }
 
                 r.AppendLine();
             }
+            catch (Exception e) when (e is NVIDIAApiException or NVIDIANotSupportedException)
+            { }
 
-            if (NvApi.NvAPI_GPU_GetTachReading != null)
+            try
             {
-                NvApi.NvStatus status = NvApi.NvAPI_GPU_GetTachReading(_handle, out int tachValue);
+                GPUCooler[] coolers = _physicalGpu.CoolerInformation.Coolers.ToArray();
 
-                r.AppendLine("Tachometer");
+                r.AppendLine("Coolers");
                 r.AppendLine();
-                if (status == NvApi.NvStatus.OK)
-                {
-                    r.AppendFormat(" Value: {0}{1}", tachValue, Environment.NewLine);
-                }
-                else
-                {
-                    r.Append(" Status: ");
-                    r.AppendLine(status.ToString());
-                }
 
-                r.AppendLine();
-            }
-
-            if (NvApi.NvAPI_GPU_GetPStates != null)
-            {
-                NvApi.NvPStates states = new NvApi.NvPStates { Version = NvApi.GPU_PSTATES_VER, PStates = new NvApi.NvPState[NvApi.MAX_PSTATES_PER_GPU] };
-                NvApi.NvStatus status = NvApi.NvAPI_GPU_GetPStates(_handle, ref states);
-
-                r.AppendLine("P-States");
-                r.AppendLine();
-                if (status == NvApi.NvStatus.OK)
+                if (coolers.Length > 0)
                 {
-                    for (int i = 0; i < states.PStates.Length; i++)
+                    for (int i = 0; i < coolers.Length; i++)
                     {
-                        if (states.PStates[i].Present)
-                            r.AppendFormat(" Percentage[{0}]: {1}{2}", i, states.PStates[i].Percentage, Environment.NewLine);
+                        GPUCooler cooler = coolers[i];
+
+                        r.AppendFormat(" Cooler[{0}].CoolerId: {1}{2}", i, cooler.CoolerId, Environment.NewLine);
+                        r.AppendFormat(" Cooler[{0}].CoolerType: {1}{2}", i, cooler.CoolerType, Environment.NewLine);
+                        r.AppendFormat(" Cooler[{0}].ControlMode: {1}{2}", i, cooler.ControlMode, Environment.NewLine);
+                        r.AppendFormat(" Cooler[{0}].CurrentPolicy: {1}{2}", i, cooler.CurrentPolicy, Environment.NewLine);
+                        r.AppendFormat(" Cooler[{0}].CurrentLevel: {1}{2}", i, cooler.CurrentLevel, Environment.NewLine);
+                        r.AppendFormat(" Cooler[{0}].CurrentFanSpeedInRPM: {1}{2}", i, cooler.CurrentFanSpeedInRPM, Environment.NewLine);
                     }
                 }
-                else
-                {
-                    r.Append(" Status: ");
-                    r.AppendLine(status.ToString());
-                }
 
                 r.AppendLine();
             }
+            catch (Exception e) when (e is NVIDIAApiException or NVIDIANotSupportedException)
+            { }
 
-            if (NvApi.NvAPI_GPU_GetUsages != null)
+            try
             {
-                NvApi.NvUsages usages = new NvApi.NvUsages { Version = NvApi.GPU_USAGES_VER, Usage = new uint[NvApi.MAX_USAGES_PER_GPU] };
-                NvApi.NvStatus status = NvApi.NvAPI_GPU_GetUsages(_handle, ref usages);
+                GPUUsageDomainStatus[] usages = _physicalGpu.UsageInformation.UtilizationDomainsStatus.ToArray();
 
                 r.AppendLine("Usages");
                 r.AppendLine();
-                if (status == NvApi.NvStatus.OK)
+
+                for (int i = 0; i < usages.Length; i++)
                 {
-                    for (int i = 0; i < usages.Usage.Length; i++)
-                    {
-                        if (usages.Usage[i] > 0)
-                            r.AppendFormat(" Usage[{0}]: {1}{2}", i, usages.Usage[i], Environment.NewLine);
-                    }
-                }
-                else
-                {
-                    r.Append(" Status: ");
-                    r.AppendLine(status.ToString());
+                    GPUUsageDomainStatus usage = usages[i];
+
+                    r.AppendFormat(" Usage[{0}].Domain: {1}{2}", i, usage.Domain, Environment.NewLine);
+                    r.AppendFormat(" Usage[{0}].Percentage: {1}{2}", i, usage.Percentage, Environment.NewLine);
                 }
 
                 r.AppendLine();
             }
+            catch (Exception e) when (e is NVIDIAApiException or NVIDIANotSupportedException)
+            { }
 
-            if (NvApi.NvAPI_GPU_GetCoolerSettings != null)
+            try
             {
-                NvApi.NvGPUCoolerSettings settings = new NvApi.NvGPUCoolerSettings { Version = NvApi.GPU_COOLER_SETTINGS_VER, Cooler = new NvApi.NvCooler[NvApi.MAX_COOLER_PER_GPU] };
-                NvApi.NvStatus status = NvApi.NvAPI_GPU_GetCoolerSettings(_handle, 0, ref settings);
-                r.AppendLine("Cooler Settings");
-                r.AppendLine();
-                if (status == NvApi.NvStatus.OK)
-                {
-                    for (int i = 0; i < settings.Count; i++)
-                    {
-                        r.AppendFormat(" Cooler[{0}].Type: {1}{2}", i, settings.Cooler[i].Type, Environment.NewLine);
-                        r.AppendFormat(" Cooler[{0}].Controller: {1}{2}", i, settings.Cooler[i].Controller, Environment.NewLine);
-                        r.AppendFormat(" Cooler[{0}].DefaultMin: {1}{2}", i, settings.Cooler[i].DefaultMin, Environment.NewLine);
-                        r.AppendFormat(" Cooler[{0}].DefaultMax: {1}{2}", i, settings.Cooler[i].DefaultMax, Environment.NewLine);
-                        r.AppendFormat(" Cooler[{0}].CurrentMin: {1}{2}", i, settings.Cooler[i].CurrentMin, Environment.NewLine);
-                        r.AppendFormat(" Cooler[{0}].CurrentMax: {1}{2}", i, settings.Cooler[i].CurrentMax, Environment.NewLine);
-                        r.AppendFormat(" Cooler[{0}].CurrentLevel: {1}{2}", i, settings.Cooler[i].CurrentLevel, Environment.NewLine);
-                        r.AppendFormat(" Cooler[{0}].DefaultPolicy: {1}{2}", i, settings.Cooler[i].DefaultPolicy, Environment.NewLine);
-                        r.AppendFormat(" Cooler[{0}].CurrentPolicy: {1}{2}", i, settings.Cooler[i].CurrentPolicy, Environment.NewLine);
-                        r.AppendFormat(" Cooler[{0}].Target: {1}{2}", i, settings.Cooler[i].Target, Environment.NewLine);
-                        r.AppendFormat(" Cooler[{0}].ControlType: {1}{2}", i, settings.Cooler[i].ControlType, Environment.NewLine);
-                        r.AppendFormat(" Cooler[{0}].Active: {1}{2}", i, settings.Cooler[i].Active, Environment.NewLine);
-                    }
-                }
-                else
-                {
-                    r.Append(" Status: ");
-                    r.AppendLine(status.ToString());
-                }
-
-                r.AppendLine();
-            }
-
-            if (NvApi.NvAPI_GPU_ClientFanCoolersGetStatus != null)
-            {
-                var coolers = new NvApi.NvFanCoolersStatus
-                {
-                    Version = NvApi.GPU_FAN_COOLERS_STATUS_VER,
-                    Items = new NvApi.NvFanCoolersStatusItem[NvApi.MAX_FAN_COOLERS_STATUS_ITEMS]
-                };
-
-                NvApi.NvStatus status = NvApi.NvAPI_GPU_ClientFanCoolersGetStatus(_handle, ref coolers);
-
-                r.AppendLine("Fan Coolers Status");
-                r.AppendLine();
-                if (status == NvApi.NvStatus.OK)
-                {
-                    for (int i = 0; i < coolers.Count; i++)
-                    {
-                        r.AppendFormat(" Items[{0}].Type: {1}{2}", i,
-                                       coolers.Items[i].Type, Environment.NewLine);
-                        r.AppendFormat(" Items[{0}].CurrentRpm: {1}{2}", i,
-                                       coolers.Items[i].CurrentRpm, Environment.NewLine);
-                        r.AppendFormat(" Items[{0}].CurrentMinLevel: {1}{2}", i,
-                                       coolers.Items[i].CurrentMinLevel, Environment.NewLine);
-                        r.AppendFormat(" Items[{0}].CurrentMaxLevel: {1}{2}", i,
-                                       coolers.Items[i].CurrentMaxLevel, Environment.NewLine);
-                        r.AppendFormat(" Items[{0}].CurrentLevel: {1}{2}", i,
-                                       coolers.Items[i].CurrentLevel, Environment.NewLine);
-                    }
-                }
-                else
-                {
-                    r.Append(" Status: ");
-                    r.AppendLine(status.ToString());
-                }
-                r.AppendLine();
-            }
-
-            if (NvApi.NvAPI_GPU_GetMemoryInfo != null && _displayHandle.HasValue)
-            {
-                NvApi.NvMemoryInfo memoryInfo = new NvApi.NvMemoryInfo { Version = NvApi.GPU_MEMORY_INFO_VER, Values = new uint[NvApi.MAX_MEMORY_VALUES_PER_GPU] };
-                NvApi.NvStatus status = NvApi.NvAPI_GPU_GetMemoryInfo(_displayHandle.Value, ref memoryInfo);
+                GPUMemoryInformation memoryInformation = _physicalGpu.MemoryInformation;
 
                 r.AppendLine("Memory Info");
                 r.AppendLine();
-                if (status == NvApi.NvStatus.OK)
-                {
-                    for (int i = 0; i < memoryInfo.Values.Length; i++)
-                        r.AppendFormat(" Value[{0}]: {1}{2}", i, memoryInfo.Values[i], Environment.NewLine);
-                }
-                else
-                {
-                    r.Append(" Status: ");
-                    r.AppendLine(status.ToString());
-                }
 
+                r.AppendFormat(" DedicatedVideoMemoryInkB: {0}{1}", memoryInformation.DedicatedVideoMemoryInkB, Environment.NewLine);
+                r.AppendFormat(" CurrentAvailableDedicatedVideoMemoryInkB: {0}{1}", memoryInformation.CurrentAvailableDedicatedVideoMemoryInkB, Environment.NewLine);
+                r.AppendFormat(" AvailableDedicatedVideoMemoryInkB: {0}{1}", memoryInformation.AvailableDedicatedVideoMemoryInkB, Environment.NewLine);
                 r.AppendLine();
             }
+            catch (Exception e) when (e is NVIDIAApiException or NVIDIANotSupportedException)
+            { }
 
             return r.ToString();
-        }
-
-        private void SoftwareControlValueChanged(IControl control)
-        {
-            NvApi.NvGPUCoolerLevels coolerLevels = new NvApi.NvGPUCoolerLevels { Version = NvApi.GPU_COOLER_LEVELS_VER, Levels = new NvApi.NvLevel[NvApi.MAX_COOLER_PER_GPU] };
-            coolerLevels.Levels[0].Level = (int)control.SoftwareValue;
-            coolerLevels.Levels[0].Policy = 1;
-            NvApi.NvAPI_GPU_SetCoolerLevels(_handle, 0, ref coolerLevels);
         }
 
         private void ControlModeChanged(IControl control)
         {
             switch (control.ControlMode)
             {
-                case ControlMode.Undefined:
-                    return;
                 case ControlMode.Default:
-                    SetDefaultFanSpeed();
+                {
+                    RestoreDefaultFanBehavior(control.Sensor.Index);
                     break;
+                }
                 case ControlMode.Software:
+                {
                     SoftwareControlValueChanged(control);
                     break;
+                }
                 default:
+                {
                     return;
+                }
             }
         }
 
-        private void SetDefaultFanSpeed()
+        private void SoftwareControlValueChanged(IControl control)
         {
-            NvApi.NvGPUCoolerLevels coolerLevels = new NvApi.NvGPUCoolerLevels { Version = NvApi.GPU_COOLER_LEVELS_VER, Levels = new NvApi.NvLevel[NvApi.MAX_COOLER_PER_GPU] };
-            coolerLevels.Levels[0].Policy = 0x20;
-            NvApi.NvAPI_GPU_SetCoolerLevels(_handle, 0, ref coolerLevels);
+            int coolerId = -1;
+            int index = control.Sensor?.Index ?? 0;
+
+            try
+            {
+                GPUCooler[] coolers = _physicalGpu.CoolerInformation.Coolers.ToArray();
+                if (coolers.Length > index)
+                {
+                    GPUCooler cooler = coolers[index];
+                    coolerId = cooler.CoolerId;
+                }
+
+                if (coolerId != -1)
+                    _physicalGpu.CoolerInformation.SetCoolerSettings(coolerId, CoolerPolicy.Manual, (int)control.SoftwareValue);
+            }
+            catch (Exception e) when (e is NVIDIAApiException or NVIDIANotSupportedException)
+            { }
+        }
+
+        private void RestoreDefaultFanBehavior(int index)
+        {
+            int coolerId = -1;
+
+            try
+            {
+                GPUCooler[] coolers = _physicalGpu.CoolerInformation.Coolers.ToArray();
+                if (coolers.Length > index)
+                {
+                    GPUCooler cooler = coolers[index];
+                    coolerId = cooler.CoolerId;
+                }
+
+                if (coolerId != -1)
+                    _physicalGpu.CoolerInformation.RestoreCoolerSettingsToDefault(coolerId);
+            }
+            catch (Exception e) when (e is NVIDIAApiException or NVIDIANotSupportedException)
+            { }
         }
 
         public override void Close()
         {
-            if (_fanControl != null)
+            if (_fanControls != null)
             {
-                _fanControl.ControlModeChanged -= ControlModeChanged;
-                _fanControl.SoftwareControlValueChanged -= SoftwareControlValueChanged;
-                if (_fanControl.ControlMode != ControlMode.Undefined)
-                    SetDefaultFanSpeed();
+                for (int i = 0; i < _fanControls.Length; i++)
+                {
+                    _fanControls[i].ControlModeChanged -= ControlModeChanged;
+                    _fanControls[i].SoftwareControlValueChanged -= SoftwareControlValueChanged;
+
+                    if (_fanControls[i].ControlMode != ControlMode.Undefined)
+                        RestoreDefaultFanBehavior(i);
+                }
             }
 
             base.Close();
