@@ -87,7 +87,7 @@ namespace LibreHardwareMonitor.Hardware.Gpu
             _powerSoC = new Sensor("GPU SoC", 2, SensorType.Power, this, settings);
             _powerTotal = new Sensor("GPU Package", 3, SensorType.Power, this, settings);
 
-            _fullscreenFps = new Sensor("Fullscreen FPS", 0, SensorType.Factor, this, settings);
+            _fullscreenFps = new Sensor("Fullscreen FPS", 0, SensorType.Fps, this, settings);
 
             if (!Software.OperatingSystem.IsUnix)
             {
