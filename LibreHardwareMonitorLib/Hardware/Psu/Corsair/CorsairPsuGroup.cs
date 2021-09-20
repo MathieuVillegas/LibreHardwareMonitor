@@ -26,7 +26,12 @@ namespace LibreHardwareMonitor.Hardware.Psu.Corsair
             0x1c0b, // RM750i
             0x1c0c, // RM850i
             0x1c0d, // RM1000i
-            // 0x1c11, // AX1600i
+            // 0x1c0e, // AX850i
+            // 0x1c00, // AX860i not good
+            // 0x1c0f, // AX1000i	
+	        // 0x1c10, // AX1200i	
+	        // 0x1c02, // AX1500i
+	        // 0x1c11, // AX1600i	
         };
 
         private static readonly ushort _vendorId = 0x1b1c;

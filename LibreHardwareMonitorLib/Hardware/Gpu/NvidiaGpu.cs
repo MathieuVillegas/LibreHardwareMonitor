@@ -73,6 +73,8 @@ namespace LibreHardwareMonitor.Hardware.Gpu
                     {
                         ThermalSettingsTarget.GPU => "GPU Core",
                         ThermalSettingsTarget.Memory => "GPU Memory",
+                        ThermalSettingsTarget.MemoryJunction => "GPU Memory Junction",
+                        ThermalSettingsTarget.Hotspot => "GPU Hotspot",
                         ThermalSettingsTarget.PowerSupply => "GPU Power Supply",
                         ThermalSettingsTarget.Board => "GPU Board",
                         ThermalSettingsTarget.VisualComputingBoard => "GPU Visual Computing Board",
