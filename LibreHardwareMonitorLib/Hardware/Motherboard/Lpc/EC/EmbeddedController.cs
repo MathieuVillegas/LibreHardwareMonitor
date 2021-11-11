@@ -56,6 +56,8 @@ namespace LibreHardwareMonitor.Hardware.Motherboard.Lpc.EC
                 case Model.ROG_STRIX_X570_E_GAMING:
                 case Model.ROG_CROSSHAIR_VIII_HERO:
                 case Model.ROG_CROSSHAIR_VIII_DARK_HERO:
+                case Model.ROG_CROSSHAIR_VIII_FORMULA:
+                case Model.ROG_STRIX_B550_I_GAMING:
                 {
                     sources.AddRange(new EmbeddedControllerSource[]
                     {
@@ -63,8 +65,6 @@ namespace LibreHardwareMonitor.Hardware.Motherboard.Lpc.EC
                         new("CPU", SensorType.Temperature, 0x003B, 1),
                         new("Motherboard", SensorType.Temperature, 0x003C, 1),
                         new("T Sensor", SensorType.Temperature, 0x003D, 1, blank: 0xD8),
-                        new("VRM", SensorType.Temperature, 0x003E, 1),
-                        new("CPU Opt", SensorType.Fan, 0x00B0, 2),
                         new("CPU", SensorType.Current, 0x00F4, 1)
                     });
 
@@ -76,6 +76,20 @@ namespace LibreHardwareMonitor.Hardware.Motherboard.Lpc.EC
             {
                 case Model.ROG_STRIX_X570_E_GAMING:
                 case Model.ROG_CROSSHAIR_VIII_HERO:
+                case Model.ROG_CROSSHAIR_VIII_DARK_HERO:
+                case Model.ROG_CROSSHAIR_VIII_FORMULA:
+                {
+                    sources.Add(new EmbeddedControllerSource("VRM", SensorType.Temperature, 0x003E, 1));
+                    sources.Add(new EmbeddedControllerSource("CPU Opt", SensorType.Fan, 0x00B0, 2));
+                    break;
+                }
+            }
+
+            switch (model)
+            {
+                case Model.ROG_STRIX_X570_E_GAMING:
+                case Model.ROG_CROSSHAIR_VIII_HERO:
+                case Model.ROG_CROSSHAIR_VIII_FORMULA:
                 {
                     sources.Add(new EmbeddedControllerSource("Chipset", SensorType.Fan, 0x00B4, 2));
                     break;
@@ -84,8 +98,18 @@ namespace LibreHardwareMonitor.Hardware.Motherboard.Lpc.EC
 
             switch (model)
             {
+                case Model.ROG_STRIX_B550_I_GAMING:
+                {
+                    sources.Add(new EmbeddedControllerSource("VRM HS Fan", SensorType.Fan, 0x00B2, 2));
+                    break;
+                }
+            }
+
+            switch (model)
+            {
                 case Model.ROG_CROSSHAIR_VIII_HERO:
                 case Model.ROG_CROSSHAIR_VIII_DARK_HERO:
+                case Model.ROG_CROSSHAIR_VIII_FORMULA:
                 {
                     // TODO: "why 42?" is a silly question, I know, but still, why? On the serious side, it might be 41.6(6)
                     sources.Add(new EmbeddedControllerSource("Flow Rate", SensorType.Flow, 0x00BC, 2, 1.0f / 42f * 60f));
