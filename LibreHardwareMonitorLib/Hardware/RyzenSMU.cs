@@ -86,12 +86,14 @@ namespace LibreHardwareMonitor.Hardware
         {
             _cpuCodeName = GetCpuCodeName(family, model, packageType);
 
-            _supportedCPU = SetAddresses(_cpuCodeName);
+            _supportedCPU = Environment.Is64BitOperatingSystem == Environment.Is64BitProcess && SetAddresses(_cpuCodeName);
 
             if (_supportedCPU)
+            {
                 InpOut.Open();
 
-            SetupPmTableAddrAndSize();
+                SetupPmTableAddrAndSize();
+            }
         }
 
         private static CpuCodeName GetCpuCodeName(uint family, uint model, uint packageType)
@@ -274,13 +276,7 @@ namespace LibreHardwareMonitor.Hardware
 
         public float[] GetPmTable()
         {
-            if (!_supportedCPU)
-                return new float[] { 0 };
-
-            if (!SetupPmTableAddrAndSize())
-                return new float[] { 0 };
-
-            if (!TransferTableToDram())
+            if (!_supportedCPU || !TransferTableToDram())
                 return new float[] { 0 };
 
 
@@ -724,7 +720,7 @@ namespace LibreHardwareMonitor.Hardware
                         return false;
                     }
                 }
-                while (tmp == 0 && 0 != retries--);
+                while (tmp == 0 && retries-- != 0);
 
                 if (retries == 0 && tmp != (uint)Status.OK)
                 {
@@ -751,7 +747,7 @@ namespace LibreHardwareMonitor.Hardware
             return tmp == (uint)Status.OK;
         }
 
-        private void WriteReg(uint addr, uint data)
+        private static void WriteReg(uint addr, uint data)
         {
             if (Ring0.WaitPciBusMutex(10))
             {
@@ -764,7 +760,7 @@ namespace LibreHardwareMonitor.Hardware
             }
         }
 
-        private bool ReadReg(uint addr, ref uint data)
+        private static bool ReadReg(uint addr, ref uint data)
         {
             bool read = false;
 
