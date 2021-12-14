@@ -68,7 +68,7 @@ namespace LibreHardwareMonitor.Hardware.Controller.AquaComputer
                 }
                 catch(Exception e)
                 {
-                    _report.AppendLine("Error exception triggered: " + e.ToString());
+                    _report.AppendLine("Error exception triggeredFor AquaComputer Device: " + e.ToString());
                 }
             }
 
