@@ -3,6 +3,7 @@
 // Copyright (C) LibreHardwareMonitor and Contributors.
 // All Rights Reserved.
 
+using System;
 using System.Collections.Generic;
 using System.Text;
 using HidSharp;
@@ -23,45 +24,51 @@ namespace LibreHardwareMonitor.Hardware.Controller.AquaComputer
             {
                 string productName = dev.GetProductName();
                 productName = productName.Substring(0, 1).ToUpper() + productName.Substring(1);
-
-                switch (dev.ProductID)
+                try
                 {
-                    case 0xF00E:
+                    switch (dev.ProductID)
                     {
-                        var device = new D5Next(dev, settings);
-                        _report.AppendLine($"Device name: {productName}");
-                        _report.AppendLine($"Firmware version: {device.FirmwareVersion}");
-                        _report.AppendLine();
-                        _hardware.Add(device);
-                        break;
+                        case 0xF00E:
+                        {
+                            var device = new D5Next(dev, settings);
+                            _report.AppendLine($"Device name: {productName}");
+                            _report.AppendLine($"Firmware version: {device.FirmwareVersion}");
+                            _report.AppendLine();
+                            _hardware.Add(device);
+                            break;
+                        }
+                        case 0xf0b6:
+                        {
+                            var device = new AquastreamXT(dev, settings);
+                            _report.AppendLine($"Device name: {productName}");
+                            _report.AppendLine($"Device variant: {device.Variant}");
+                            _report.AppendLine($"Firmware version: {device.FirmwareVersion}");
+                            _report.AppendLine($"{device.Status}");
+                            _report.AppendLine();
+                            _hardware.Add(device);
+                            break;
+                        }
+                        case 0xf003:
+                        {
+                            var device = new MPS(dev, settings);
+                            _report.AppendLine($"Device name: {productName}");
+                            _report.AppendLine($"Firmware version: {device.FirmwareVersion}");
+                            _report.AppendLine($"{device.Status}");
+                            _report.AppendLine();
+                            _hardware.Add(device);
+                            break;
+                        }
+                        default:
+                        {
+                            _report.AppendLine($"Unknown Hardware PID: {dev.ProductID} Name: {productName}");
+                            _report.AppendLine();
+                            break;
+                        }
                     }
-                    case 0xf0b6:
-                    {
-                        var device = new AquastreamXT(dev, settings);
-                        _report.AppendLine($"Device name: {productName}");
-                        _report.AppendLine($"Device variant: {device.Variant}");
-                        _report.AppendLine($"Firmware version: {device.FirmwareVersion}");
-                        _report.AppendLine($"{device.Status}");
-                        _report.AppendLine();
-                        _hardware.Add(device);
-                        break;
-                    }
-                    case 0xf003:
-                    {
-                        var device = new MPS(dev, settings);
-                        _report.AppendLine($"Device name: {productName}");
-                        _report.AppendLine($"Firmware version: {device.FirmwareVersion}");
-                        _report.AppendLine($"{device.Status}");
-                        _report.AppendLine();
-                        _hardware.Add(device);
-                        break;
-                    }
-                    default:
-                    {
-                        _report.AppendLine($"Unknown Hardware PID: {dev.ProductID} Name: {productName}");
-                        _report.AppendLine();
-                        break;
-                    }
+                }
+                catch(Exception e)
+                {
+                    _report.AppendLine("Error exception triggered: " + e.ToString());
                 }
             }
 
