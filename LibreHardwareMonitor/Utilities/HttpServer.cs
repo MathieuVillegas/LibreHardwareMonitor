@@ -629,6 +629,8 @@ namespace LibreHardwareMonitor.Utilities
                     return "nvidia.png";
                 case HardwareType.GpuAmd:
                     return "ati.png";
+                case HardwareType.GpuIntel:
+                    return "intel.png";
                 case HardwareType.Storage:
                     return "hdd.png";
                 case HardwareType.Motherboard:
@@ -643,6 +645,8 @@ namespace LibreHardwareMonitor.Utilities
                     return "nic.png";
                 case HardwareType.Psu:
                     return "power-supply.png";
+                case HardwareType.Battery:
+                    return "battery.png";
                 default:
                     return "cpu.png";
             }
