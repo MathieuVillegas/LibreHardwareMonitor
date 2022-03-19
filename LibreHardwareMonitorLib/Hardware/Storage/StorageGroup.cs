@@ -26,20 +26,23 @@ namespace LibreHardwareMonitor.Hardware.Storage
             foreach (ManagementBaseObject diskDrive in diskDrives)
             {
 				try {
-                string deviceId = (string)diskDrive.Properties["DeviceId"].Value; // is \\.\PhysicalDrive0..n
-                uint idx = Convert.ToUInt32(diskDrive.Properties["Index"].Value);
-                ulong diskSize = Convert.ToUInt64(diskDrive.Properties["Size"].Value);
-                int scsi = Convert.ToInt32(diskDrive.Properties["SCSIPort"].Value);
+                    string deviceId = (string)diskDrive.Properties["DeviceId"].Value; // is \\.\PhysicalDrive0..n
+                    uint idx = Convert.ToUInt32(diskDrive.Properties["Index"].Value);
+                    ulong diskSize = Convert.ToUInt64(diskDrive.Properties["Size"].Value);
+                    int scsi = Convert.ToInt32(diskDrive.Properties["SCSIPort"].Value);
 
-                if (deviceId != null)
-                {
-                    var instance = AbstractStorage.CreateInstance(deviceId, idx, diskSize, scsi, settings);
-                    if (instance != null)
+                    if (deviceId != null)
                     {
-                        _hardware.Add(instance);
+                        var instance = AbstractStorage.CreateInstance(deviceId, idx, diskSize, scsi, settings);
+                        if (instance != null)
+                        {
+                            _hardware.Add(instance);
+                        }
                     }
+                } 
+                catch(Exception) 
+                {
                 }
-} catch(Exception) {}
             }
         }
 
