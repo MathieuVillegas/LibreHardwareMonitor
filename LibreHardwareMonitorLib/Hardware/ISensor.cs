@@ -31,6 +31,7 @@ namespace LibreHardwareMonitor.Hardware
         Throughput, // B/s
         TimeSpan, // Seconds 
         Fps, //fps
+        Energy // milliwatt-hour (mWh)
     }
 
     /// <summary>

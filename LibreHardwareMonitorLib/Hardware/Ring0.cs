@@ -22,6 +22,7 @@ namespace LibreHardwareMonitor.Hardware
         private static string _filePath;
         private static Mutex _isaBusMutex;
         private static Mutex _pciBusMutex;
+        private static Mutex _ecMutex;
 
         private static readonly StringBuilder _report = new();
 
@@ -35,7 +36,6 @@ namespace LibreHardwareMonitor.Hardware
 
             if (_driver != null)
                 return;
-
 
             // clear the current report
             _report.Length = 0;
@@ -58,15 +58,13 @@ namespace LibreHardwareMonitor.Hardware
                     }
                     else
                     {
-                        string errorFirstInstall = installError;
-
                         // install failed, try to delete and reinstall
                         _driver.Delete();
 
                         // wait a short moment to give the OS a chance to remove the driver
                         Thread.Sleep(2000);
 
-                        if (_driver.Install(_filePath, out string errorSecondInstall))
+                        if (_driver.Install(_filePath, out string secondError))
                         {
                             _driver.Open();
 
@@ -75,9 +73,9 @@ namespace LibreHardwareMonitor.Hardware
                         }
                         else
                         {
-                            _report.AppendLine("Status: Installing driver \"" + _filePath + "\" failed" + (File.Exists(_filePath) ? " and file exists" : string.Empty));
-                            _report.AppendLine("First Exception: " + errorFirstInstall);
-                            _report.AppendLine("Second Exception: " + errorSecondInstall);
+                            _report.Append("Status: Installing driver \"").Append(_filePath).Append("\" failed").AppendLine((File.Exists(_filePath) ? " and file exists" : string.Empty));
+                            _report.Append("First Exception: ").AppendLine(installError);
+                            _report.Append("Second Exception: ").AppendLine(secondError);
                         }
                     }
 
@@ -88,7 +86,9 @@ namespace LibreHardwareMonitor.Hardware
                     }
                 }
                 else
+                {
                     _report.AppendLine("Status: Extracting driver failed");
+                }
             }
 
             if (!_driver.IsOpen)
@@ -142,6 +142,35 @@ namespace LibreHardwareMonitor.Hardware
                 catch
                 { }
             }
+
+            const string ecMutexName = "Global\\Access_EC";
+
+            try
+            {
+#if NETFRAMEWORK
+                //mutex permissions set to everyone to allow other software to access the hardware
+                //otherwise other monitoring software cant access
+                var allowEveryoneRule = new MutexAccessRule(new SecurityIdentifier(WellKnownSidType.WorldSid, null), MutexRights.FullControl, AccessControlType.Allow);
+                var securitySettings = new MutexSecurity();
+                securitySettings.AddAccessRule(allowEveryoneRule);
+                _ecMutex = new Mutex(false, ecMutexName, out _, securitySettings);
+#else
+                _ecMutex = new Mutex(false, ecMutexName);
+#endif
+            }
+            catch (UnauthorizedAccessException)
+            {
+                try
+                {
+#if NETFRAMEWORK
+                    _ecMutex = Mutex.OpenExisting(ecMutexName, MutexRights.Synchronize);
+#else
+                    _ecMutex = Mutex.OpenExisting(ecMutexName);
+#endif
+                }
+                catch
+                { }
+            }
         }
 
         private static bool ExtractDriver(string filePath)
@@ -168,8 +197,7 @@ namespace LibreHardwareMonitor.Hardware
 
             if (buffer == null)
                 return false;
-
-
+            
             try
             {
                 using FileStream target = new(filePath, FileMode.Create);
@@ -229,7 +257,7 @@ namespace LibreHardwareMonitor.Hardware
                 {
                     name = Path.GetFileNameWithoutExtension(processModule.FileName);
                     if (!string.IsNullOrEmpty(name))
-                        return GetWinRing0Name(name);
+                        return GetName(name);
                 }
             }
             catch
@@ -237,18 +265,23 @@ namespace LibreHardwareMonitor.Hardware
                 // Continue with the other options.
             }
 
-            AssemblyName assemblyName = typeof(Ring0).Assembly.GetName();
-
-            name = assemblyName.Name;
+            name = GetNameFromAssembly(Assembly.GetExecutingAssembly());
             if (!string.IsNullOrEmpty(name))
-                return GetWinRing0Name(name);
+                return GetName(name);
 
+            name = GetNameFromAssembly(typeof(Ring0).Assembly);
+            if (!string.IsNullOrEmpty(name))
+                return GetName(name);
 
             name = nameof(LibreHardwareMonitor);
-            return GetWinRing0Name(name);
+            return GetName(name);
 
+            static string GetNameFromAssembly(Assembly assembly)
+            {
+                return assembly?.GetName().Name;
+            }
 
-            static string GetWinRing0Name(string name)
+            static string GetName(string name)
             {
                 return $"R0{name}".Replace(" ", string.Empty).Replace(".", "_");
             }
@@ -277,11 +310,9 @@ namespace LibreHardwareMonitor.Hardware
             if (!string.IsNullOrEmpty(filePath) && TryCreate(filePath))
                 return filePath;
 
-
             filePath = GetPathFromAssembly(typeof(Ring0).Assembly);
             if (!string.IsNullOrEmpty(filePath) && TryCreate(filePath))
                 return filePath;
-
 
             try
             {
@@ -300,7 +331,6 @@ namespace LibreHardwareMonitor.Hardware
 
             return null;
 
-
             static string GetPathFromAssembly(Assembly assembly)
             {
                 try
@@ -313,7 +343,6 @@ namespace LibreHardwareMonitor.Hardware
                     return null;
                 }
             }
-
 
             static bool TryCreate(string path)
             {
@@ -353,6 +382,12 @@ namespace LibreHardwareMonitor.Hardware
             {
                 _pciBusMutex.Close();
                 _pciBusMutex = null;
+            }
+
+            if (_ecMutex != null)
+            {
+                _ecMutex.Close();
+                _ecMutex = null;
             }
 
             // try to delete temporary driver file again if failed during open
@@ -422,6 +457,31 @@ namespace LibreHardwareMonitor.Hardware
         public static void ReleasePciBusMutex()
         {
             _pciBusMutex?.ReleaseMutex();
+        }
+
+        public static bool WaitEcMutex(int millisecondsTimeout)
+        {
+            if (_ecMutex == null)
+                return true;
+
+
+            try
+            {
+                return _ecMutex.WaitOne(millisecondsTimeout, false);
+            }
+            catch (AbandonedMutexException)
+            {
+                return true;
+            }
+            catch (InvalidOperationException)
+            {
+                return false;
+            }
+        }
+
+        public static void ReleaseEcMutex()
+        {
+            _ecMutex?.ReleaseMutex();
         }
 
         public static bool ReadMsr(uint index, out uint eax, out uint edx)

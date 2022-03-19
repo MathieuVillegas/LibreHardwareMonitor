@@ -35,6 +35,9 @@ namespace LibreHardwareMonitor.UI
                 case HardwareType.GpuAmd:
                     image = Utilities.EmbeddedResources.GetImage("amd.png");
                     break;
+                case HardwareType.GpuIntel:
+                    image = Utilities.EmbeddedResources.GetImage("intel.png");
+                    break;
                 case HardwareType.Storage:
                     image = Utilities.EmbeddedResources.GetImage("hdd.png");
                     break;
@@ -56,6 +59,9 @@ namespace LibreHardwareMonitor.UI
                     break;
                 case HardwareType.Psu:
                     image = Utilities.EmbeddedResources.GetImage("power-supply.png");
+                    break;
+                case HardwareType.Battery:
+                    image = Utilities.EmbeddedResources.GetImage("battery.png");
                     break;
                 default:
                     image = new Bitmap(1, 1);

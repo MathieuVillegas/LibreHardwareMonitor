@@ -181,6 +181,7 @@ namespace LibreHardwareMonitor.UI
                 case SensorType.Power:
                 case SensorType.Data:
                 case SensorType.Load:
+                case SensorType.Energy:
                     return $"{Sensor.Value:F0}";
                 default:
                     return "-";
@@ -215,7 +216,7 @@ namespace LibreHardwareMonitor.UI
             }
             _graphics.FillRectangle(_darkBrush, 0.5f, -0.5f, _bitmap.Width - 2, _bitmap.Height);
             float value = Sensor.Value.GetValueOrDefault();
-            float y = 0.16f * (100 - value);
+            float y = (float)(_bitmap.Height * 0.01f) * (100 - value);
             _graphics.FillRectangle(_brush, 0.5f, -0.5f + y, _bitmap.Width - 2, _bitmap.Height - y);
             _graphics.DrawRectangle(_pen, 1, 0, _bitmap.Width - 3, _bitmap.Height - 1);
 
@@ -255,6 +256,7 @@ namespace LibreHardwareMonitor.UI
                 case SensorType.Power: format = "\n{0}: {1:F0} W"; break;
                 case SensorType.Data: format = "\n{0}: {1:F0} GB"; break;
                 case SensorType.Factor: format = "\n{0}: {1:F3} GB"; break;
+                case SensorType.Energy: format = "\n{0}: {0:F0} mWh"; break;
             }
             string formattedValue = string.Format(format, Sensor.Name, Sensor.Value);
 

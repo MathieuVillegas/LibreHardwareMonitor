@@ -14,13 +14,14 @@ namespace LibreHardwareMonitor.Hardware.Memory
 
         public MemoryGroup(ISettings settings)
         {
-            // No implementation for RAM on Unix systems
             if (Software.OperatingSystem.IsUnix)
             {
-                _hardware = new Hardware[0];
-                return;
+                _hardware = new Hardware[] { new GenericLinuxMemory("Generic Memory", settings) };
             }
-            _hardware = new Hardware[] { new GenericMemory("Memory", settings) };
+            else
+            {
+                _hardware = new Hardware[] { new GenericWindowsMemory("Memory", settings) };
+            }
         }
 
         public string GetReport()

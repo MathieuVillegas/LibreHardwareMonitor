@@ -9,7 +9,7 @@ using LibreHardwareMonitor.Interop;
 
 namespace LibreHardwareMonitor.Hardware.Memory
 {
-    internal sealed class GenericMemory : Hardware
+    internal sealed class GenericWindowsMemory : Hardware
     {
         const float GIGABYTE = 1024f * 1024f * 1024f;
 
@@ -24,7 +24,7 @@ namespace LibreHardwareMonitor.Hardware.Memory
         private Sensor _availableSwap;
         private Sensor _usedSwap;
 
-        public GenericMemory(string name, ISettings settings) : base(name, new Identifier("ram"), settings)
+        public GenericWindowsMemory(string name, ISettings settings) : base(name, new Identifier("ram"), settings)
         {
             _usedLoadSensor = new Sensor("Used RAM %", 0, SensorType.Load, this, settings);
             ActivateSensor(_usedLoadSensor);
