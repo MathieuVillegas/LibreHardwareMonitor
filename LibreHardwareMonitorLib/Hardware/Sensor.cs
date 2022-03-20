@@ -80,9 +80,15 @@ namespace LibreHardwareMonitor.Hardware
             get { return _hardware; }
         }
 
+
+        protected virtual Identifier getIdentifier()
+        {
+            return new Identifier(_hardware.Identifier, SensorType.ToString().ToLowerInvariant(), Index.ToString(CultureInfo.InvariantCulture));
+        }
+
         public Identifier Identifier
         {
-            get { return new Identifier(_hardware.Identifier, SensorType.ToString().ToLowerInvariant(), Index.ToString(CultureInfo.InvariantCulture)); }
+            get { return getIdentifier(); }
         }
 
         public int Index { get; }

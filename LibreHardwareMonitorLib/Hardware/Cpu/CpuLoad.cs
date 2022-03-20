@@ -12,6 +12,7 @@ namespace LibreHardwareMonitor.Hardware.CPU
 {
     internal class CpuLoad
     {
+        private readonly float[] _coreLoads;
         private readonly CpuId[][] _cpuid;
         private long[] _idleTimes;
         private readonly float[] _threadLoads;
@@ -21,6 +22,7 @@ namespace LibreHardwareMonitor.Hardware.CPU
         public CpuLoad(CpuId[][] cpuid)
         {
             _cpuid = cpuid;
+            _coreLoads = new float[cpuid.Length];
             _threadLoads = new float[cpuid.Sum(x => x.Length)];
             _totalLoad = 0;
             try
@@ -72,6 +74,11 @@ namespace LibreHardwareMonitor.Hardware.CPU
             return _totalLoad;
         }
 
+        public float GetCoreLoad(int core)
+        {
+            return _coreLoads[core];
+        }
+
         public float GetThreadLoad(int thread)
         {
             return _threadLoads[thread];
@@ -97,6 +104,29 @@ namespace LibreHardwareMonitor.Hardware.CPU
 
             float total = 0;
             int count = 0;
+
+            //////////////////////////////
+            for (int i = 0; i < _cpuid.Length; i++)
+            {
+                float value = 0;
+                for (int j = 0; j < _cpuid[i].Length; j++)
+                {
+                    long index = _cpuid[i][j].Thread;
+                    if (index < newIdleTimes.Length && index < _totalTimes.Length)
+                    {
+                        float idle = (newIdleTimes[index] - _idleTimes[index]) / (float)(newTotalTimes[index] - _totalTimes[index]);
+                        value += idle;
+                        total += idle;
+                        count++;
+                    }
+                }
+
+                value = 1.0f - value / _cpuid[i].Length;
+                value = value < 0 ? 0 : value;
+                _coreLoads[i] = value * 100;
+            }
+            /////////////////////////
+
             for (int i = 0; i < _threadLoads.Length && i < _idleTimes.Length && i < newIdleTimes.Length; i++)
             {
                 float idle = (newIdleTimes[i] - _idleTimes[i]) / (float)(newTotalTimes[i] - _totalTimes[i]);

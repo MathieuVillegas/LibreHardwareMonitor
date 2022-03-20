@@ -4,6 +4,7 @@
 // Partial Copyright (C) Michael Möller <mmoeller@openhardwaremonitor.org> and Contributors.
 // All Rights Reserved.
 
+using LibreHardwareMonitor.Hardware.Cpu;
 using System;
 using System.Diagnostics;
 using System.Globalization;
@@ -26,6 +27,7 @@ namespace LibreHardwareMonitor.Hardware.CPU
         private readonly double _estimatedTimeStampCounterFrequency;
         private readonly double _estimatedTimeStampCounterFrequencyError;
         private readonly bool _isInvariantTimeStampCounter;
+        private readonly Sensor[] _coreLoads;
         private readonly Sensor[] _threadLoads;
 
         private readonly Sensor _totalLoad;
@@ -57,22 +59,37 @@ namespace LibreHardwareMonitor.Hardware.CPU
 
             _totalLoad = _coreCount > 1 ? new Sensor("CPU Total", 0, SensorType.Load, this, settings) : null;
 
+            /////////////////////////restore coreload
+            _coreLoads = new Sensor[_coreCount];
+            for (int i = 0; i < _coreLoads.Length; i++)
+                _coreLoads[i] = new Sensor(CoreString(i), i + 1, SensorType.Load, this, settings);
+            //////////////////////////////////////////////
+
             _cpuLoad = new CpuLoad(cpuId);
             if (_cpuLoad.IsAvailable)
             {
-                _threadLoads = new Sensor[_threadCount];
-                for (int coreIdx = 0; coreIdx < cpuId.Length; coreIdx++)
+                /////////////////////////restore coreload
+                foreach (Sensor sensor in _coreLoads)
                 {
-                    for (int threadIdx = 0; threadIdx < cpuId[coreIdx].Length; threadIdx++)
-                    {
-                        int thread = cpuId[coreIdx][threadIdx].Thread;
-                        if (thread < _threadLoads.Length)
-                        {
-                            // Some cores may have 2 threads while others have only one (e.g. P-cores vs E-cores on Intel 12th gen).
-                            string sensorName = CoreString(coreIdx) + (cpuId[coreIdx].Length > 1 ? $" Thread #{threadIdx + 1}" : string.Empty);
-                            _threadLoads[thread] = new Sensor(sensorName, thread + 1, SensorType.Load, this, settings);
+                    ActivateSensor(sensor);
+                }
 
-                            ActivateSensor(_threadLoads[thread]);
+                if (_threadCount != _coreCount)
+                {
+                    _threadLoads = new Sensor[_threadCount];
+                    for (int coreIdx = 0; coreIdx < cpuId.Length; coreIdx++)
+                    {
+                        for (int threadIdx = 0; threadIdx < cpuId[coreIdx].Length; threadIdx++)
+                        {
+                            int thread = cpuId[coreIdx][threadIdx].Thread;
+                            if (thread < _threadLoads.Length && cpuId[coreIdx].Length > 1)
+                            {
+                                // Some cores may have 2 threads while others have only one (e.g. P-cores vs E-cores on Intel 12th gen).
+                                string sensorName = CoreString(coreIdx) + (cpuId[coreIdx].Length > 1 ? $" Thread #{threadIdx + 1}" : string.Empty);
+                                _threadLoads[thread] = new CpuThreadSensor(sensorName, threadIdx, SensorType.Load, _coreLoads[coreIdx], this, settings);
+
+                                ActivateSensor(_threadLoads[thread]);
+                            }
                         }
                     }
                 }
@@ -299,6 +316,11 @@ namespace LibreHardwareMonitor.Hardware.CPU
             {
                 _cpuLoad.Update();
 
+                ////////////////////////////
+                for (int i = 0; i < _coreLoads.Length; i++)
+                    _coreLoads[i].Value = _cpuLoad.GetCoreLoad(i);
+                ///////////////////////
+                
                 if (_threadLoads != null)
                 {
                     for (int i = 0; i < _threadLoads.Length; i++)
