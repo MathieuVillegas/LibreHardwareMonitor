@@ -14,19 +14,20 @@ namespace LibreHardwareMonitor.Hardware.Motherboard.Lpc
 {
     internal class IT87XX : ISuperIO
     {
+        private const int MaxFanHeaders = 6;
         private readonly ushort _address;
         private readonly ushort _addressReg;
         private readonly int _bankCount;
         private readonly ushort _dataReg;
-        private readonly bool[] _fansDisabled = new bool[0];
+        private readonly bool[] _fansDisabled = Array.Empty<bool>();
         private readonly ushort _gpioAddress;
         private readonly int _gpioCount;
         private readonly bool _has16BitFanCounter;
         private readonly bool _hasExtReg;
         private readonly bool[] _initialFanOutputModeEnabled = new bool[3]; // Initial Fan Controller Main Control Register value. 
-        private readonly byte[] _initialFanPwmControl = new byte[5]; // This will also store the 2nd control register value.
-        private readonly byte[] _initialFanPwmControlExt = new byte[5];
-        private readonly bool[] _restoreDefaultFanPwmControlRequired = new bool[5];
+        private readonly byte[] _initialFanPwmControl = new byte[MaxFanHeaders]; // This will also store the 2nd control register value.
+        private readonly byte[] _initialFanPwmControlExt = new byte[MaxFanHeaders];
+        private readonly bool[] _restoreDefaultFanPwmControlRequired = new bool[MaxFanHeaders];
         private readonly byte _version;
         private readonly float _voltageGain;
 
@@ -47,7 +48,6 @@ namespace LibreHardwareMonitor.Hardware.Motherboard.Lpc
             if (!valid)
                 return;
 
-
             bool hasMatchingVendorId = false;
             foreach (byte iteVendorId in ITE_VENDOR_IDS)
             {
@@ -61,12 +61,10 @@ namespace LibreHardwareMonitor.Hardware.Motherboard.Lpc
             if (!hasMatchingVendorId)
                 return;
 
-
             // Bit 0x10 of the configuration register should always be 1
             byte configuration = ReadByte(CONFIGURATION_REGISTER, out valid);
             if (!valid || ((configuration & 0x10) == 0 && chip != Chip.IT8655E && chip != Chip.IT8665E))
                 return;
-
 
             FAN_PWM_CTRL_REG = chip == Chip.IT8665E
                 ? new byte[] { 0x15, 0x16, 0x17, 0x1e, 0x1f }
@@ -78,152 +76,112 @@ namespace LibreHardwareMonitor.Hardware.Motherboard.Lpc
                 _ => 1
             };
 
-            _hasExtReg = chip == Chip.IT8721F ||
-                         chip == Chip.IT8728F ||
-                         chip == Chip.IT8665E ||
-                         chip == Chip.IT8686E ||
-                         chip == Chip.IT8688E ||
-                         chip == Chip.IT8689E ||
-                         chip == Chip.IT8695E ||
-                         chip == Chip.IT8628E ||
-                         chip == Chip.IT8620E ||
-                         chip == Chip.IT8613E ||
-                         chip == Chip.IT879XE ||
-                         chip == Chip.IT8655E ||
-                         chip == Chip.IT8631E;
+            _hasExtReg = chip is Chip.IT8721F or
+                         Chip.IT8728F or
+                         Chip.IT8665E or
+                         Chip.IT8686E or
+                         Chip.IT8688E or
+                         Chip.IT8689E or
+                         Chip.IT8695E or
+                         Chip.IT8628E or
+                         Chip.IT8620E or
+                         Chip.IT8613E or
+                         Chip.IT879XE or
+                         Chip.IT8655E or
+                         Chip.IT8631E;
 
             switch (chip)
             {
                 case Chip.IT8613E:
-                {
                     Voltages = new float?[10];
                     Temperatures = new float?[4];
                     Fans = new float?[5];
                     Controls = new float?[4];
                     break;
-                }
+
                 case Chip.IT8628E:
-                {
                     Voltages = new float?[10];
                     Temperatures = new float?[6];
                     Fans = new float?[4];
                     Controls = new float?[4];
                     break;
-                }
+
                 case Chip.IT8631E:
-                {
                     Voltages = new float?[9];
                     Temperatures = new float?[2];
                     Fans = new float?[2];
                     Controls = new float?[2];
                     break;
-                }
+
                 case Chip.IT8665E:
                 case Chip.IT8686E:
-                {
                     Voltages = new float?[10];
                     Temperatures = new float?[6];
                     Fans = new float?[6];
                     Controls = new float?[5];
                     break;
-                }
+
                 case Chip.IT8688E:
-                {
                     Voltages = new float?[11];
                     Temperatures = new float?[6];
                     Fans = new float?[6];
                     Controls = new float?[5];
                     break;
-                }
+
                 case Chip.IT8689E:
-                {
                     Voltages = new float?[10];
                     Temperatures = new float?[6];
-                    Fans = new float?[5];
-                    Controls = new float?[5];
+                    Fans = new float?[6];
+                    Controls = new float?[6];
                     break;
-                }
+
                 case Chip.IT8695E:
-                {
                     Voltages = new float?[6];
                     Temperatures = new float?[3];
                     Fans = new float?[3];
                     Controls = new float?[3];
                     break;
-                }
+
                 case Chip.IT8655E:
-                {
                     Voltages = new float?[9];
                     Temperatures = new float?[6];
                     Fans = new float?[3];
                     Controls = new float?[3];
                     break;
-                }
+
                 case Chip.IT879XE:
-                {
                     Voltages = new float?[9];
                     Temperatures = new float?[3];
                     Fans = new float?[3];
                     Controls = new float?[3];
                     break;
-                }
+
                 case Chip.IT8705F:
-                {
                     Voltages = new float?[9];
                     Temperatures = new float?[3];
                     Fans = new float?[3];
                     Controls = new float?[3];
                     break;
-                }
+
                 default:
-                {
                     Voltages = new float?[9];
                     Temperatures = new float?[3];
                     Fans = new float?[5];
                     Controls = new float?[3];
                     break;
-                }
             }
 
             _fansDisabled = new bool[Fans.Length];
 
-            switch (chip)
+            // IT8620E, IT8628E, IT8721F, IT8728F, IT8772E and IT8686E use a 12mV resolution.
+            // All others 16mV.
+            _voltageGain = chip switch
             {
-                // IT8620E, IT8628E, IT8721F, IT8728F, IT8772E and IT8686E use a 12mV resolution.
-                // All others 16mV.
-                case Chip.IT8613E:
-                case Chip.IT8620E:
-                case Chip.IT8628E:
-                case Chip.IT8631E:
-                case Chip.IT8721F:
-                case Chip.IT8728F:
-                case Chip.IT8771E:
-                case Chip.IT8772E:
-                case Chip.IT8686E:
-                case Chip.IT8688E:
-                case Chip.IT8689E:
-                {
-                    _voltageGain = 0.012f;
-                    break;
-                }
-                case Chip.IT8695E:
-                {
-                    _voltageGain = 11f / 1000f;
-                    break;
-                }
-                case Chip.IT8655E:
-                case Chip.IT8665E:
-                case Chip.IT879XE:
-                {
-                    _voltageGain = 0.0109f;
-                    break;
-                }
-                default:
-                {
-                    _voltageGain = 0.016f;
-                    break;
-                }
-            }
+                Chip.IT8613E or Chip.IT8620E or Chip.IT8628E or Chip.IT8631E or Chip.IT8721F or Chip.IT8728F or Chip.IT8771E or Chip.IT8772E or Chip.IT8686E or Chip.IT8688E or Chip.IT8689E => 0.012f,
+                Chip.IT8695E => 11f / 1000f,
+                Chip.IT8655E or Chip.IT8665E or Chip.IT879XE => 0.0109f,
+                _ => 0.016f,
+            };
 
             // Older IT8705F and IT8721F revisions do not have 16-bit fan counters.
             _has16BitFanCounter = (chip != Chip.IT8705F || version >= 3) && (chip != Chip.IT8712F || version >= 8);
@@ -236,7 +194,6 @@ namespace LibreHardwareMonitor.Hardware.Motherboard.Lpc
                 if (!valid)
                     return;
 
-
                 if (Fans.Length >= 5)
                 {
                     _fansDisabled[3] = (modes & (1 << 4)) == 0;
@@ -248,45 +205,28 @@ namespace LibreHardwareMonitor.Hardware.Motherboard.Lpc
             }
 
             // Set the number of GPIO sets
-            switch (chip)
+            _gpioCount = chip switch
             {
-                case Chip.IT8712F:
-                case Chip.IT8716F:
-                case Chip.IT8718F:
-                case Chip.IT8726F:
-                {
-                    _gpioCount = 5;
-                    break;
-                }
-                case Chip.IT8720F:
-                case Chip.IT8721F:
-                {
-                    _gpioCount = 8;
-                    break;
-                }
-                default:
-                {
-                    _gpioCount = 0;
-                    break;
-                }
-            }
+                Chip.IT8712F or Chip.IT8716F or Chip.IT8718F or Chip.IT8726F => 5,
+                Chip.IT8720F or Chip.IT8721F => 8,
+                _ => 0,
+            };
         }
 
         public Chip Chip { get; }
 
-        public float?[] Controls { get; } = new float?[0];
+        public float?[] Controls { get; } = Array.Empty<float?>();
 
-        public float?[] Fans { get; } = new float?[0];
+        public float?[] Fans { get; } = Array.Empty<float?>();
 
-        public float?[] Temperatures { get; } = new float?[0];
+        public float?[] Temperatures { get; } = Array.Empty<float?>();
 
-        public float?[] Voltages { get; } = new float?[0];
+        public float?[] Voltages { get; } = Array.Empty<float?>();
 
         public byte? ReadGpio(int index)
         {
             if (index >= _gpioCount)
                 return null;
-
 
             return Ring0.ReadIoPort((ushort)(_gpioAddress + index));
         }
@@ -296,7 +236,6 @@ namespace LibreHardwareMonitor.Hardware.Motherboard.Lpc
             if (index >= _gpioCount)
                 return;
 
-
             Ring0.WriteIoPort((ushort)(_gpioAddress + index), value);
         }
 
@@ -305,10 +244,8 @@ namespace LibreHardwareMonitor.Hardware.Motherboard.Lpc
             if (index < 0 || index >= Controls.Length)
                 throw new ArgumentOutOfRangeException(nameof(index));
 
-
             if (!Ring0.WaitIsaBusMutex(10))
                 return;
-
 
             if (value.HasValue)
             {
@@ -325,7 +262,7 @@ namespace LibreHardwareMonitor.Hardware.Motherboard.Lpc
                     }
                     else
                     {
-                        WriteByte(FAN_PWM_CTRL_REG[index], (byte)(_initialFanPwmControl[index] & 0x7F));    
+                        WriteByte(FAN_PWM_CTRL_REG[index], (byte)(_initialFanPwmControl[index] & 0x7F));
                     }
                     WriteByte(FAN_PWM_CTRL_EXT_REG[index], value.Value);
                 }
@@ -344,7 +281,7 @@ namespace LibreHardwareMonitor.Hardware.Motherboard.Lpc
 
         public string GetReport()
         {
-            StringBuilder r = new StringBuilder();
+            StringBuilder r = new();
 
             r.AppendLine("LPC " + GetType().Name);
             r.AppendLine();
@@ -366,7 +303,7 @@ namespace LibreHardwareMonitor.Hardware.Motherboard.Lpc
             {
                 if (SupportsMultipleBanks && b > 0)
                 {
-                    SelectBank(b);    
+                    SelectBank(b);
                 }
                 r.AppendLine($"Environment Controller Registers Bank {b}");
                 r.AppendLine();
@@ -386,13 +323,13 @@ namespace LibreHardwareMonitor.Hardware.Motherboard.Lpc
 
                     r.AppendLine();
                 }
-                
+
                 r.AppendLine();
             }
 
             if (SupportsMultipleBanks)
             {
-                SelectBank(0);                
+                SelectBank(0);
             }
 
             r.AppendLine();
@@ -410,26 +347,6 @@ namespace LibreHardwareMonitor.Hardware.Motherboard.Lpc
             Ring0.ReleaseIsaBusMutex();
             return r.ToString();
         }
-    
-        /// <summary>
-        /// Return the currently active bank index.
-        /// </summary>
-        /// <returns></returns>
-        private int GetCurrentBank()
-        {
-            if (_bankCount <= 1)
-                return 0; // current chip does not support multi bank registers
-            
-            var value = ReadByte(BANK_REGISTER, out bool valid);
-            if (valid)
-            {
-                return (value & 0x60) >> 5;
-            }
-            else
-            {
-                return -1;
-            }
-        }
 
         /// <summary>
         /// Selects another bank. Memory from 0x10-0xAF swaps to data from new bank.
@@ -445,12 +362,12 @@ namespace LibreHardwareMonitor.Hardware.Motherboard.Lpc
             // hard cap SelectBank to 2 bit values. If we ever have chips with more bank bits rewrite this method.
             bankIndex &= 0x3;
 
-            var value = ReadByte(BANK_REGISTER, out bool valid);
+            byte value = ReadByte(BANK_REGISTER, out bool valid);
             if (valid)
             {
                 value &= 0x9F;
                 value |= (byte)(bankIndex << 5);
-                WriteByte(BANK_REGISTER, value );
+                WriteByte(BANK_REGISTER, value);
             }
         }
 
@@ -459,14 +376,12 @@ namespace LibreHardwareMonitor.Hardware.Motherboard.Lpc
             if (!Ring0.WaitIsaBusMutex(10))
                 return;
 
-
             for (int i = 0; i < Voltages.Length; i++)
             {
                 float value = _voltageGain * ReadByte((byte)(VOLTAGE_BASE_REG + i), out bool valid);
 
                 if (!valid)
                     continue;
-
 
                 if (value > 0)
                     Voltages[i] = value;
@@ -480,8 +395,7 @@ namespace LibreHardwareMonitor.Hardware.Motherboard.Lpc
                 if (!valid)
                     continue;
 
-
-                if (value < sbyte.MaxValue && value > 0)
+                if (value is < sbyte.MaxValue and > 0)
                     Temperatures[i] = value;
                 else
                     Temperatures[i] = null;
@@ -494,16 +408,13 @@ namespace LibreHardwareMonitor.Hardware.Motherboard.Lpc
                     if (_fansDisabled[i])
                         continue;
 
-
                     int value = ReadByte(FAN_TACHOMETER_REG[i], out bool valid);
                     if (!valid)
                         continue;
 
-
                     value |= ReadByte(FAN_TACHOMETER_EXT_REG[i], out valid) << 8;
                     if (!valid)
                         continue;
-
 
                     if (value > 0x3f)
                         Fans[i] = value < 0xffff ? 1.35e6f / (value * 2) : 0;
@@ -519,14 +430,12 @@ namespace LibreHardwareMonitor.Hardware.Motherboard.Lpc
                     if (!valid)
                         continue;
 
-
                     int divisor = 2;
                     if (i < 2)
                     {
                         int divisors = ReadByte(FAN_TACHOMETER_DIVISOR_REGISTER, out valid);
                         if (!valid)
                             continue;
-
 
                         divisor = 1 << ((divisors >> (3 * i)) & 0x7);
                     }
@@ -543,7 +452,6 @@ namespace LibreHardwareMonitor.Hardware.Motherboard.Lpc
                 byte value = ReadByte(FAN_PWM_CTRL_REG[i], out bool valid);
                 if (!valid)
                     continue;
-
 
                 if ((value & 0x80) > 0)
                 {
@@ -643,7 +551,7 @@ namespace LibreHardwareMonitor.Hardware.Motherboard.Lpc
         private const byte VOLTAGE_BASE_REG = 0x20;
 
         private readonly byte[] FAN_PWM_CTRL_REG;
-        private readonly byte[] FAN_PWM_CTRL_EXT_REG = { 0x63, 0x6b, 0x73, 0x7b, 0xa3 };
+        private readonly byte[] FAN_PWM_CTRL_EXT_REG = { 0x63, 0x6b, 0x73, 0x7b, 0xa3, 0xab };
         private readonly byte[] FAN_TACHOMETER_EXT_REG = { 0x18, 0x19, 0x1a, 0x81, 0x83, 0x4d };
         private readonly byte[] FAN_TACHOMETER_REG = { 0x0d, 0x0e, 0x0f, 0x80, 0x82, 0x4c };
 
