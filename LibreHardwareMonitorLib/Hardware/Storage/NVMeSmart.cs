@@ -28,6 +28,10 @@ namespace LibreHardwareMonitor.Hardware.Storage
                 if (_handle != null)
                 {
                     NVMeDrive = new NVMeSamsung();
+                    if (!NVMeDrive.IdentifyController(_handle, out _))
+                    {
+                        NVMeDrive = null;
+                    }
                 }
             }
 
@@ -100,10 +104,9 @@ namespace LibreHardwareMonitor.Hardware.Storage
 
         protected void Dispose(bool disposing)
         {
-            if (disposing)
+            if (disposing && _handle is { IsClosed: false })
             {
-                if (_handle != null && !_handle.IsClosed)
-                    _handle.Close();
+                _handle.Close();
             }
         }
 
