@@ -52,6 +52,9 @@ internal sealed class Amd17Cpu : AmdCpu
             // nodeID =  CPUID_Fn8000001E_ECX[7:0]
             int nodeId = (int)(thread.ExtData[0x1e, 2] & 0xff);
 
+            // move below line from line 65 to here to ensure senosr numbering is correct
+            _processor.AppendThread(thread, nodeId, coreId);
+
             if (coreIdRead != lastCoreId)
             {
                 coreId++;
@@ -59,7 +62,7 @@ internal sealed class Amd17Cpu : AmdCpu
 
             lastCoreId = coreIdRead;
 
-            _processor.AppendThread(thread, nodeId, coreId);
+            // _processor.AppendThread(thread, nodeId, coreId);
         }
 
         Update();
