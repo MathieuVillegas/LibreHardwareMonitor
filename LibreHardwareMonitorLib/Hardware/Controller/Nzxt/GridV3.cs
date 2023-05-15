@@ -26,8 +26,7 @@ internal sealed class GridV3 : Hardware
     private readonly HidStream _stream;
     private readonly Dictionary<int, byte[]> _rawData = new();
 
-    // moa temporarily disable noise
-    // private readonly Sensor _noise;
+    private readonly Sensor _noise;
     private readonly Sensor[] _currents = new Sensor[FANS_COUNT];
     private readonly Sensor[] _powers = new Sensor[FANS_COUNT];
     private readonly Sensor[] _pwmControls = new Sensor[FANS_COUNT];
@@ -91,9 +90,9 @@ internal sealed class GridV3 : Hardware
                 // NZXT GRID does not report current PWM value. So we need to initialize it with some value to keep GUI and device values in sync.
                 _fanControls[i].SetDefault();
             }
-            // moa temporarily disable noise
-            // _noise = new Sensor("GRID Noise", 0, SensorType.Noise, this, Array.Empty<ParameterDescription>(), settings);
-            // ActivateSensor(_noise);
+            
+            _noise = new Sensor("GRID Noise", 0, SensorType.Noise, this, Array.Empty<ParameterDescription>(), settings);
+            ActivateSensor(_noise);
 
             Thread readGridReports = new(ContinuousRead) { IsBackground = true };
             readGridReports.Start(_rawData);
@@ -179,8 +178,7 @@ internal sealed class GridV3 : Hardware
                 _currents[fanID].Value = _rawData[fanID][9] + _rawData[fanID][10] / 100.0f;
                 _powers[fanID].Value = _currents[fanID].Value * _voltages[fanID].Value;
             }
-            // moa temporarily disable noise
-            // _noise.Value = _rawData[2][1];
+            _noise.Value = _rawData[2][1];
         }
     }
 }
