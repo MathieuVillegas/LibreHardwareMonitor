@@ -3,8 +3,8 @@
 // Copyright (C) LibreHardwareMonitor and Contributors.
 // All Rights Reserved.
 
+using System;
 using System.Diagnostics;
-using System.IO;
 using System.Threading;
 
 namespace LibreHardwareMonitor.Hardware.Motherboard.Lpc.EC;
@@ -44,33 +44,27 @@ public class WindowsEmbeddedControllerIO : IEmbeddedControllerIO
         byte bank = 0;
         byte prevBank = SwitchBank(bank);
 
-        try
-        {
-            // oops... somebody else is working with the EC too
-            Trace.WriteLineIf(prevBank != 0, "Concurrent access to the ACPI EC detected.\nRace condition possible.");
+        // oops... somebody else is working with the EC too
+        Trace.WriteLineIf(prevBank != 0, "Concurrent access to the ACPI EC detected.\nRace condition possible.");
 
-            // read registers minimizing bank switches.
-            for (int i = 0; i < registers.Length; i++)
-            {
-                byte regBank = (byte)(registers[i] >> 8);
-                byte regIndex = (byte)(registers[i] & 0xFF);
-                // registers are sorted by bank
-                if (regBank > bank)
-                {
-                    bank = SwitchBank(regBank);
-                }
-                data[i] = ReadByte(regIndex);
-            }
-        }
-        finally
+        // read registers minimizing bank switches.
+        for (int i = 0; i < registers.Length; i++)
         {
-            SwitchBank(prevBank);
+            byte regBank = (byte)(registers[i] >> 8);
+            byte regIndex = (byte)(registers[i] & 0xFF);
+            // registers are sorted by bank
+            if (regBank > bank)
+            {
+                bank = SwitchBank(regBank);
+            }
+            data[i] = ReadByte(regIndex);
         }
+
+        SwitchBank(prevBank);
     }
 
     private byte ReadByte(byte register)
     {
-
         return ReadLoop<byte>(register, ReadByteOp);
     }
 
@@ -107,11 +101,7 @@ public class WindowsEmbeddedControllerIO : IEmbeddedControllerIO
             }
         }
 
-        // Throw an exception here, since errors take time and if severl errros occures this can hangs the system for several seconds
-        // to avoid that I stop immediately with an exception since the results will be wrong anyway.
-        throw new IOException("Can't read register.");
-
-        //return result;
+        return result;
     }
 
     private void WriteLoop<TValue>(byte register, TValue value, WriteOp<TValue> op)
@@ -123,9 +113,6 @@ public class WindowsEmbeddedControllerIO : IEmbeddedControllerIO
                 return;
             }
         }
-        // Throw an exception here, since errors take time and if severl errros occures this can hangs the system for several seconds
-        // to avoid that I stop immediately with an exception since the results will be wrong anyway.
-        throw new IOException("Can't write register.");
     }
 
     private bool WaitForStatus(Status status, bool isSet)
@@ -149,11 +136,7 @@ public class WindowsEmbeddedControllerIO : IEmbeddedControllerIO
     {
         if (_waitReadFailures > FailuresBeforeSkip)
         {
-            // Throw an exception here, since errors take time and if severl errros occures this can hangs the system for several seconds
-            // to avoid that I stop immediately with an exception since the results will be wrong anyway.
-            throw new IOException("Can't read register.");
-
-            // return true;
+            return true;
         }
 
         if (WaitForStatus(Status.OutputBufferFull, true))
@@ -168,16 +151,7 @@ public class WindowsEmbeddedControllerIO : IEmbeddedControllerIO
 
     private bool WaitWrite()
     {
-        if( WaitForStatus(Status.InputBufferFull, false))
-        {
-            return true;
-        }
-        else
-        {
-            // Throw an exception here, since errors take time and if severl errros occures this can hangs the system for several seconds
-            // to avoid that I stop immediately with an exception since the results will be wrong anyway.
-            throw new IOException("Can't write register.");
-        }
+        return WaitForStatus(Status.InputBufferFull, false);
     }
 
     private byte ReadIOPort(Port port)
@@ -234,9 +208,11 @@ public class WindowsEmbeddedControllerIO : IEmbeddedControllerIO
         if (WaitWrite())
         {
             WriteIOPort(Port.Command, (byte)Command.Read);
+
             if (WaitWrite())
             {
                 WriteIOPort(Port.Data, register);
+
                 if (WaitWrite() && WaitRead())
                 {
                     value = ReadIOPort(Port.Data);
@@ -244,13 +220,9 @@ public class WindowsEmbeddedControllerIO : IEmbeddedControllerIO
                 }
             }
         }
+
         value = 0;
-
-        // Throw an exception here, since errors take time and if severl errros occures this can hangs the system for several seconds
-        // to avoid that I stop immediately with an exception since the results will be wrong anyway.
-        throw new IOException("Can't ReadByteOp.");
-
-        //return false;
+        return false;
     }
 
     protected bool WriteByteOp(byte register, byte value)
@@ -269,10 +241,7 @@ public class WindowsEmbeddedControllerIO : IEmbeddedControllerIO
             }
         }
 
-        // Throw an exception here, since errors take time and if several errors occur this can hangs the system for several seconds
-        // to avoid that I stop immediately with an exception since the results will be wrong anyway.
-        throw new IOException("Can't WriteByteOp.");
-
+        return false;
     }
 
     #endregion
