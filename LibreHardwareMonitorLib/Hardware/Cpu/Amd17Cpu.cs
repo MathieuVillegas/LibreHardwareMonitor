@@ -167,7 +167,7 @@ internal sealed class Amd17Cpu : AmdCpu
             uint smuSvi0TelPlane0 = 0;
             uint smuSvi0TelPlane1 = 0;
 
-            if (Ring0.WaitPciBusMutex(10))
+            if (Mutexes.WaitPciBus(10))
             {
                 // THM_TCON_CUR_TMP
                 // CUR_TEMP [31:21]
@@ -343,7 +343,7 @@ internal sealed class Amd17Cpu : AmdCpu
                     }
                 }
 
-                Ring0.ReleasePciBusMutex();
+                Mutexes.ReleasePciBus();
             }
 
             // voltage
