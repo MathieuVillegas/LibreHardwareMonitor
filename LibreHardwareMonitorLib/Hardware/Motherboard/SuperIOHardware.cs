@@ -233,7 +233,7 @@ internal sealed class SuperIOHardware : Hardware
                 GetIteConfigurationsB(superIO, manufacturer, model, v, t, f, c);
                 break;
 
-            case Chip.IT8795E:
+            case Chip.IT87952E:
             case Chip.IT8792E:
             case Chip.IT8790E:
                 GetIteConfigurationsC(superIO, manufacturer, model, v, t, f, c);
@@ -513,61 +513,6 @@ internal sealed class SuperIOHardware : Hardware
                         f.Add(new Fan("CPU Fan", 0));
                         f.Add(new Fan("Chassis Fan #1", 1));
                         f.Add(new Fan("Chassis Fan #2", 2));
-
-                        break;
-
-                    case Model.PRIME_X370_PRO: // IT8665E
-                    case Model.TUF_X470_PLUS_GAMING:
-                        v.Add(new Voltage("Vcore", 0));
-                        v.Add(new Voltage("SB 2.5V", 1));
-                        v.Add(new Voltage("+12V", 2, 5, 1));
-                        v.Add(new Voltage("+5V", 3, 1.5f, 1));
-                        v.Add(new Voltage("Voltage #4", 4, true));
-                        v.Add(new Voltage("Voltage #6", 5, true));
-                        v.Add(new Voltage("Voltage #7", 6, true));
-                        v.Add(new Voltage("+3.3V", 7, 10, 10));
-                        v.Add(new Voltage("VBat", 8, 10, 10));
-                        v.Add(new Voltage("Voltage #10", 9, true));
-                        t.Add(new Temperature("CPU", 0));
-                        t.Add(new Temperature("Motherboard", 1));
-                        t.Add(new Temperature("PCH", 2));
-
-                        for (int i = 3; i < superIO.Temperatures.Length; i++)
-                            t.Add(new Temperature("Temperature #" + (i + 1), i));
-
-                        f.Add(new Fan("CPU Fan", 0));
-
-                        for (int i = 1; i < superIO.Fans.Length; i++)
-                            f.Add(new Fan("Fan #" + (i + 1), i));
-
-                        break;
-
-                    case Model.ROG_ZENITH_EXTREME: // IT8665E
-                        v.Add(new Voltage("Vcore", 0, 10, 10));
-                        v.Add(new Voltage("DIMM AB", 1, 10, 10));
-                        v.Add(new Voltage("+12V", 2, 5, 1));
-                        v.Add(new Voltage("+5V", 3, 1.5f, 1));
-                        v.Add(new Voltage("SB 1.05V", 4, 10, 10));
-                        v.Add(new Voltage("DIMM CD", 5, 10, 10));
-                        v.Add(new Voltage("1.8V PLL", 6, 10, 10));
-                        v.Add(new Voltage("+3.3V", 7, 10, 10));
-                        v.Add(new Voltage("VBat", 8, 10, 10));
-                        t.Add(new Temperature("CPU", 0));
-                        t.Add(new Temperature("Motherboard", 1));
-                        t.Add(new Temperature("CPU Socket", 2));
-                        t.Add(new Temperature("Temperature #4", 3));
-                        t.Add(new Temperature("Temperature #5", 4));
-                        t.Add(new Temperature("VRM", 5));
-
-                        f.Add(new Fan("CPU Fan", 0));
-                        f.Add(new Fan("Chassis Fan #1", 1));
-                        f.Add(new Fan("Chassis Fan #2", 2));
-                        f.Add(new Fan("High Amp Fan", 3));
-                        f.Add(new Fan("Fan 5", 4));
-                        f.Add(new Fan("Fan 6", 5));
-
-                        for (int i = 0; i < superIO.Controls.Length; i++)
-                            c.Add(new Control("Fan #" + (i + 1), i));
 
                         break;
 
@@ -1028,6 +973,97 @@ internal sealed class SuperIOHardware : Hardware
             case Manufacturer.ASUS:
                 switch (model)
                 {
+                    case Model.PRIME_X370_PRO: // IT8665E
+                        v.Add(new Voltage("Vcore", 0));
+                        v.Add(new Voltage("SB 2.5V", 1));
+                        v.Add(new Voltage("+12V", 2, 5, 1));
+                        v.Add(new Voltage("+5V", 3, 1.5f, 1));
+                        v.Add(new Voltage("Voltage #4", 4, true));
+                        v.Add(new Voltage("Voltage #6", 5, true));
+                        v.Add(new Voltage("Voltage #7", 6, true));
+                        v.Add(new Voltage("+3.3V", 7, 10, 10));
+                        v.Add(new Voltage("VBat", 8, 10, 10));
+                        v.Add(new Voltage("Voltage #10", 9, true));
+                        t.Add(new Temperature("CPU", 0));
+                        t.Add(new Temperature("Motherboard", 1));
+                        t.Add(new Temperature("VRM", 2));
+
+                        for (int i = 3; i < superIO.Temperatures.Length; i++)
+                            t.Add(new Temperature("Temperature #" + (i + 1), i));
+
+                        // Don't know how to get the Pump Fans readings (bios? DC controller? driver?)
+                        f.Add(new Fan("CPU Fan", 0));
+                        f.Add(new Fan("Chassis Fan #1", 1));
+                        f.Add(new Fan("Chassis Fan #2", 2));
+                        f.Add(new Fan("AIO Pump", 3));
+                        f.Add(new Fan("CPU Optional Fan", 4));
+                        f.Add(new Fan("Water Pump", 5));
+
+                        for (int i = 6; i < superIO.Fans.Length; i++)
+                            f.Add(new Fan("Fan #" + (i + 1), i));
+
+                        for (int i = 0; i < superIO.Controls.Length; i++)
+                            c.Add(new Control("Fan #" + (i + 1), i));
+
+                        break;
+
+                    case Model.TUF_X470_PLUS_GAMING: // IT8665E
+                        v.Add(new Voltage("Vcore", 0));
+                        v.Add(new Voltage("SB 2.5V", 1));
+                        v.Add(new Voltage("+12V", 2, 5, 1));
+                        v.Add(new Voltage("+5V", 3, 1.5f, 1));
+                        v.Add(new Voltage("Voltage #4", 4, true));
+                        v.Add(new Voltage("Voltage #6", 5, true));
+                        v.Add(new Voltage("Voltage #7", 6, true));
+                        v.Add(new Voltage("+3.3V", 7, 10, 10));
+                        v.Add(new Voltage("VBat", 8, 10, 10));
+                        v.Add(new Voltage("Voltage #10", 9, true));
+                        t.Add(new Temperature("CPU", 0));
+                        t.Add(new Temperature("Motherboard", 1));
+                        t.Add(new Temperature("PCH", 2));
+
+                        for (int i = 3; i < superIO.Temperatures.Length; i++)
+                            t.Add(new Temperature("Temperature #" + (i + 1), i));
+
+                        f.Add(new Fan("CPU Fan", 0));
+
+                        for (int i = 1; i < superIO.Fans.Length; i++)
+                            f.Add(new Fan("Fan #" + (i + 1), i));
+
+                        for (int i = 0; i < superIO.Controls.Length; i++)
+                            c.Add(new Control("Fan #" + (i + 1), i));
+
+                        break;
+
+                    case Model.ROG_ZENITH_EXTREME: // IT8665E
+                        v.Add(new Voltage("Vcore", 0, 10, 10));
+                        v.Add(new Voltage("DIMM AB", 1, 10, 10));
+                        v.Add(new Voltage("+12V", 2, 5, 1));
+                        v.Add(new Voltage("+5V", 3, 1.5f, 1));
+                        v.Add(new Voltage("SB 1.05V", 4, 10, 10));
+                        v.Add(new Voltage("DIMM CD", 5, 10, 10));
+                        v.Add(new Voltage("1.8V PLL", 6, 10, 10));
+                        v.Add(new Voltage("+3.3V", 7, 10, 10));
+                        v.Add(new Voltage("VBat", 8, 10, 10));
+                        t.Add(new Temperature("CPU", 0));
+                        t.Add(new Temperature("Motherboard", 1));
+                        t.Add(new Temperature("CPU Socket", 2));
+                        t.Add(new Temperature("Temperature #4", 3));
+                        t.Add(new Temperature("Temperature #5", 4));
+                        t.Add(new Temperature("VRM", 5));
+
+                        f.Add(new Fan("CPU Fan", 0));
+                        f.Add(new Fan("Chassis Fan #1", 1));
+                        f.Add(new Fan("Chassis Fan #2", 2));
+                        f.Add(new Fan("High Amp Fan", 3));
+                        f.Add(new Fan("Fan 5", 4));
+                        f.Add(new Fan("Fan 6", 5));
+
+                        for (int i = 0; i < superIO.Controls.Length; i++)
+                            c.Add(new Control("Fan #" + (i + 1), i));
+
+                        break;
+
                     case Model.ROG_STRIX_X470_I: // IT8665E
                         v.Add(new Voltage("Vcore", 0));
                         v.Add(new Voltage("SB 2.5V", 1));
@@ -1154,6 +1190,25 @@ internal sealed class SuperIOHardware : Hardware
                         f.Add(new Fan("System Fan #1", 1));
                         f.Add(new Fan("Power Fan", 2));
                         f.Add(new Fan("System Fan #2", 3));
+
+                        break;
+
+                    case Model.B75M_D3H: // IT8728F
+                        v.Add(new Voltage("VTT", 0));
+                        v.Add(new Voltage("+3.3V", 1, 6.49f, 10));
+                        v.Add(new Voltage("+5V", 3, 15, 10));
+                        v.Add(new Voltage("+12V", 2, 10, 2));
+                        v.Add(new Voltage("iGPU VAXG", 4));
+                        v.Add(new Voltage("Vcore", 5));
+                        v.Add(new Voltage("DIMM", 6));
+                        v.Add(new Voltage("3VSB", 7, 10, 10));
+                        v.Add(new Voltage("VBat", 8, 10, 10));
+                        t.Add(new Temperature("System", 0));
+                        t.Add(new Temperature("CPU", 2));
+                        f.Add(new Fan("CPU Fan", 0));
+                        f.Add(new Fan("System Fan", 1));
+                        c.Add(new Control("CPU Fan", 2));
+                        c.Add(new Control("System Fan", 1));
 
                         break;
 
@@ -1460,6 +1515,7 @@ internal sealed class SuperIOHardware : Hardware
                         break;
 
                     case Model.Z690_AORUS_PRO:
+                    case Model.Z690_AORUS_ULTRA: // ITE IT8689E
                         v.Add(new Voltage("Vcore", 0));
                         v.Add(new Voltage("+3.3V", 1, 6.49f, 10));
                         v.Add(new Voltage("+12V", 2, 5f, 1));
@@ -1469,6 +1525,7 @@ internal sealed class SuperIOHardware : Hardware
                         v.Add(new Voltage("Voltage #6", 6, true));
                         v.Add(new Voltage("3VSB", 7, 1f, 1f));
                         v.Add(new Voltage("VBat", 8, 1f, 1f));
+                        v.Add(new Voltage("AVCC3", 9, true));
                         t.Add(new Temperature("System #1", 0));
                         t.Add(new Temperature("PCH", 1));
                         t.Add(new Temperature("CPU", 2));
@@ -2014,6 +2071,61 @@ internal sealed class SuperIOHardware : Hardware
 
                         for (int i = 0; i < superIO.Fans.Length; i++)
                             f.Add(new Fan("Fan #" + (i + 1), i));
+
+                        break;
+                }
+
+                break;
+            case Manufacturer.MSI:
+                switch (model)
+                {
+                    case Model.Z77_MS7751: // F71889AD
+                    case Model.Z68_MS7672: // F71889AD
+                        v.Add(new Voltage("VCC3V", 0, 150, 150));
+                        v.Add(new Voltage("Vcore", 1));
+                        v.Add(new Voltage("iGPU", 2));
+                        v.Add(new Voltage("+5V", 3, 20, 4.7f));
+                        v.Add(new Voltage("+12V", 4, 68, 6.8f));
+                        v.Add(new Voltage("DIMM", 5, 150, 150));
+                        v.Add(new Voltage("CPU I/O", 6));
+                        v.Add(new Voltage("+3.3V", 7, 150, 150));
+                        v.Add(new Voltage("VBat", 8, 150, 150));
+
+                        t.Add(new Temperature("CPU", 0));
+                        t.Add(new Temperature("Probe", 1));
+                        t.Add(new Temperature("System", 2));
+
+                        f.Add(new Fan("CPU Fan", 0));
+                        for (int i = 1; i < superIO.Fans.Length; i++)
+                            f.Add(new Fan("System Fan #" + i, i));
+
+                        c.Add(new Control("CPU Fan", 0));
+                        for (int i = 1; i < superIO.Controls.Length; i++)
+                            c.Add(new Control("System Fan #" + i, i));
+
+                        break;
+                    default:
+                        v.Add(new Voltage("VCC3V", 0, 150, 150));
+                        v.Add(new Voltage("Vcore", 1));
+                        v.Add(new Voltage("Voltage #3", 2, true));
+                        v.Add(new Voltage("Voltage #4", 3, true));
+                        v.Add(new Voltage("Voltage #5", 4, true));
+                        v.Add(new Voltage("Voltage #6", 5, true));
+
+                        if (superIO.Chip != Chip.F71808E)
+                            v.Add(new Voltage("Voltage #7", 6, true));
+
+                        v.Add(new Voltage("VSB3V", 7, 150, 150));
+                        v.Add(new Voltage("VBat", 8, 150, 150));
+
+                        for (int i = 0; i < superIO.Temperatures.Length; i++)
+                            t.Add(new Temperature("Temperature #" + (i + 1), i));
+
+                        for (int i = 0; i < superIO.Fans.Length; i++)
+                            f.Add(new Fan("Fan #" + (i + 1), i));
+
+                        for (int i = 0; i < superIO.Controls.Length; i++)
+                            c.Add(new Control("Fan Control #" + (i + 1), i));
 
                         break;
                 }
@@ -3119,6 +3231,39 @@ internal sealed class SuperIOHardware : Hardware
                         v.Add(new Voltage("Voltage #14", 13, true));
                         v.Add(new Voltage("Voltage #15", 14, true));
                         t.Add(new Temperature("CPU Core", 0));
+
+                        for (int i = 0; i < superIO.Fans.Length; i++)
+                            f.Add(new Fan("Fan #" + (i + 1), i));
+
+                        for (int i = 0; i < superIO.Controls.Length; i++)
+                            c.Add(new Control("Fan #" + (i + 1), i));
+
+                        break;
+
+                    case Model.ROG_CROSSHAIR_X670E_GENE: // NCT6799D
+                        v.Add(new Voltage("Vcore", 0, 2, 2)); // This is wrong
+                        v.Add(new Voltage("+5V", 1, 4, 1));
+                        v.Add(new Voltage("AVCC", 2, 34, 34));
+                        v.Add(new Voltage("+3.3V", 3, 34, 34));
+                        v.Add(new Voltage("+12V", 4, 11, 1));
+                        v.Add(new Voltage("Voltage #6", 5, true));
+                        v.Add(new Voltage("Voltage #7", 6, true));
+                        v.Add(new Voltage("3VSB", 7, 34, 34));
+                        v.Add(new Voltage("VBat", 8, 34, 34));
+                        v.Add(new Voltage("VTT", 9)); // This is wrong
+                        v.Add(new Voltage("Voltage #11", 10, true));
+                        v.Add(new Voltage("Voltage #12", 11, true));
+                        v.Add(new Voltage("Voltage #13", 12, true));
+                        v.Add(new Voltage("Voltage #14", 13, true));
+                        v.Add(new Voltage("Voltage #15", 14, true));
+                        t.Add(new Temperature("CPU Core", 0));
+                        t.Add(new Temperature("Temperature #1", 1));
+                        t.Add(new Temperature("Temperature #2", 2));
+                        t.Add(new Temperature("Temperature #3", 3));
+                        t.Add(new Temperature("Temperature #4", 4));
+                        t.Add(new Temperature("Temperature #5", 5));
+                        t.Add(new Temperature("Temperature #6", 6));
+                        t.Add(new Temperature("T Sensor", 24));
 
                         for (int i = 0; i < superIO.Fans.Length; i++)
                             f.Add(new Fan("Fan #" + (i + 1), i));
