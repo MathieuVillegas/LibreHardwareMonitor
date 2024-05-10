@@ -32,7 +32,8 @@ public enum SensorType
     TimeSpan, // Seconds 
     Fps, //fps
     Energy, // milliwatt-hour (mWh)
-    Noise // dBA
+    Noise, // dBA
+    Humidity // %
 }
 
 /// <summary>
