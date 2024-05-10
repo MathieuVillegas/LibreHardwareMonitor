@@ -58,8 +58,8 @@ public class GenericCpu : Hardware
         // Check if processor supports an invariant TSC.
         _isInvariantTimeStampCounter = cpuId[0][0].ExtData.GetLength(0) > 7 && (cpuId[0][0].ExtData[7, 3] & 0x100) != 0;
 
-        _totalLoad = _coreCount > 1 ? new Sensor("CPU Total", 0, SensorType.Load, this, settings) : null;
-        _maxLoad = _coreCount > 1 ? new Sensor("CPU Core Max", 1, SensorType.Load, this, settings) : null;
+        _totalLoad = _coreCount > 1 ? new Sensor("CPU Total", _coreCount + 1, SensorType.Load, this, settings) : null;
+        _maxLoad = _coreCount > 1 ? new Sensor("CPU Core Max", _coreCount + 2, SensorType.Load, this, settings) : null;
 
         /////////////////////////restore coreload
         _coreLoads = new Sensor[_coreCount];
