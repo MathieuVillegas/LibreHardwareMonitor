@@ -110,6 +110,10 @@ public enum Model
     PRIME_Z690_A,
     ROG_MAXIMUS_Z790_FORMULA,
     ROG_MAXIMUS_XII_HERO_WIFI,
+    PRIME_X870_P,
+    ROG_CROSSHAIR_X870E_HERO,
+    ROG_STRIX_X870E_E_GAMING_WIFI,
+    PROART_X870E_CREATOR_WIFI,
 
     //BIOSTAR
     B660GTN,
@@ -255,6 +259,9 @@ public enum Model
 
     // Shuttle
     FH67,
+
+    //Supermicro
+    X11SWN_E,
 
     // Unknown
     Unknown
