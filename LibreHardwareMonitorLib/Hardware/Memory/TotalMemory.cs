@@ -9,15 +9,15 @@ namespace LibreHardwareMonitor.Hardware.Memory;
 internal sealed class TotalMemory : Hardware
 {
     public TotalMemory(ISettings settings)
-        : base("Total Memory", new Identifier("ram"), settings)
+        : base("Memory", new Identifier("ram"), settings)
     {
-        PhysicalMemoryUsed = new Sensor("Memory Used", 0, SensorType.Data, this, settings);
-        ActivateSensor(PhysicalMemoryUsed);
+        PhysicalMemorytotal = new Sensor("RAM Total", 0, SensorType.Data, this, settings);
+        ActivateSensor(PhysicalMemorytotal);
 
-        PhysicalMemoryAvailable = new Sensor("Memory Available", 1, SensorType.Data, this, settings);
+        PhysicalMemoryAvailable = new Sensor("RAM Available", 1, SensorType.Data, this, settings);
         ActivateSensor(PhysicalMemoryAvailable);
 
-        PhysicalMemoryLoad = new Sensor("Memory", 0, SensorType.Load, this, settings);
+        PhysicalMemoryLoad = new Sensor("RAM", 0, SensorType.Load, this, settings);
         ActivateSensor(PhysicalMemoryLoad);
     }
 
@@ -27,7 +27,7 @@ internal sealed class TotalMemory : Hardware
 
     internal Sensor PhysicalMemoryLoad { get; }
 
-    internal Sensor PhysicalMemoryUsed { get; }
+    internal Sensor PhysicalMemorytotal { get; }
 
     public override void Update()
     {

@@ -22,16 +22,14 @@ internal static class MemoryLinux
                 float freeMemoryGb = GetMemInfoValue(memoryInfo.First(entry => entry.StartsWith("MemFree:"))) / 1024.0f / 1024.0f;
                 float cachedMemoryGb = GetMemInfoValue(memoryInfo.First(entry => entry.StartsWith("Cached:"))) / 1024.0f / 1024.0f;
 
-                float usedMemoryGb = totalMemoryGb - freeMemoryGb - cachedMemoryGb;
-
-                memory.PhysicalMemoryUsed.Value = usedMemoryGb;
-                memory.PhysicalMemoryAvailable.Value = totalMemoryGb;
-                memory.PhysicalMemoryLoad.Value = 100.0f * (usedMemoryGb / totalMemoryGb);
+                memory.PhysicalMemorytotal.Value = totalMemoryGb;
+                memory.PhysicalMemoryAvailable.Value = freeMemoryGb;
+                memory.PhysicalMemoryLoad.Value = 100.0f - (100.0f * (freeMemoryGb / totalMemoryGb));
             }
         }
         catch
         {
-            memory.PhysicalMemoryUsed.Value = null;
+            memory.PhysicalMemorytotal.Value = null;
             memory.PhysicalMemoryAvailable.Value = null;
             memory.PhysicalMemoryLoad.Value = null;
         }
