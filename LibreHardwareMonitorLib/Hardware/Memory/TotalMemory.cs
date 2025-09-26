@@ -11,11 +11,14 @@ internal sealed class TotalMemory : Hardware
     public TotalMemory(ISettings settings)
         : base("Memory", new Identifier("ram"), settings)
     {
-        PhysicalMemorytotal = new Sensor("RAM Total", 0, SensorType.Data, this, settings);
-        ActivateSensor(PhysicalMemorytotal);
+        PhysicalMemoryTotal = new Sensor("RAM Total", 0, SensorType.Data, this, settings);
+        ActivateSensor(PhysicalMemoryTotal);
 
         PhysicalMemoryAvailable = new Sensor("RAM Available", 1, SensorType.Data, this, settings);
         ActivateSensor(PhysicalMemoryAvailable);
+
+        PhysicalMemoryUsed = new Sensor("RAM Used", 4, SensorType.Data, this, settings);
+        ActivateSensor(PhysicalMemoryUsed);
 
         PhysicalMemoryLoad = new Sensor("RAM", 0, SensorType.Load, this, settings);
         ActivateSensor(PhysicalMemoryLoad);
@@ -25,9 +28,11 @@ internal sealed class TotalMemory : Hardware
 
     internal Sensor PhysicalMemoryAvailable { get; }
 
+    internal Sensor PhysicalMemoryUsed { get; }
+
     internal Sensor PhysicalMemoryLoad { get; }
 
-    internal Sensor PhysicalMemorytotal { get; }
+    internal Sensor PhysicalMemoryTotal { get; }
 
     public override void Update()
     {

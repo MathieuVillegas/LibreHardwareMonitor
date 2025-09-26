@@ -22,15 +22,17 @@ internal static class MemoryLinux
                 float freeMemoryGb = GetMemInfoValue(memoryInfo.First(entry => entry.StartsWith("MemFree:"))) / 1024.0f / 1024.0f;
                 float cachedMemoryGb = GetMemInfoValue(memoryInfo.First(entry => entry.StartsWith("Cached:"))) / 1024.0f / 1024.0f;
 
-                memory.PhysicalMemorytotal.Value = totalMemoryGb;
+                memory.PhysicalMemoryTotal.Value = totalMemoryGb;
                 memory.PhysicalMemoryAvailable.Value = freeMemoryGb;
+                memory.PhysicalMemoryUsed.Value = totalMemoryGb - freeMemoryGb;
                 memory.PhysicalMemoryLoad.Value = 100.0f - (100.0f * (freeMemoryGb / totalMemoryGb));
             }
         }
         catch
         {
-            memory.PhysicalMemorytotal.Value = null;
+            memory.PhysicalMemoryTotal.Value = null;
             memory.PhysicalMemoryAvailable.Value = null;
+            memory.PhysicalMemoryUsed.Value = null;
             memory.PhysicalMemoryLoad.Value = null;
         }
     }
@@ -46,13 +48,15 @@ internal static class MemoryLinux
                 float freeSwapMemoryGb = GetMemInfoValue(memoryInfo.First(entry => entry.StartsWith("SwapFree"))) / 1024.0f / 1024.0f;
                 float usedSwapMemoryGb = totalSwapMemoryGb - freeSwapMemoryGb;
 
+                memory.VirtualMemoryTotal.Value = totalSwapMemoryGb;
+                memory.VirtualMemoryAvailable.Value = freeSwapMemoryGb;
                 memory.VirtualMemoryUsed.Value = usedSwapMemoryGb;
-                memory.VirtualMemoryAvailable.Value = totalSwapMemoryGb;
                 memory.VirtualMemoryLoad.Value = 100.0f * (usedSwapMemoryGb / totalSwapMemoryGb);
             }
         }
         catch
         {
+            memory.VirtualMemoryTotal.Value = null;
             memory.VirtualMemoryUsed.Value = null;
             memory.VirtualMemoryAvailable.Value = null;
             memory.VirtualMemoryLoad.Value = null;

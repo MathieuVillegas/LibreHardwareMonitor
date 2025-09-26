@@ -9,13 +9,16 @@ namespace LibreHardwareMonitor.Hardware.Memory;
 internal sealed class VirtualMemory : Hardware
 {
     public VirtualMemory(ISettings settings)
-        : base("Virtual Memory", new Identifier("ram"), settings) // changed back to "ram" from "vram" for backward compatibility 
+        : base("Memory", new Identifier("ram"), settings) // changed back to "ram" from "vram" for backward compatibility 
     {
-        VirtualMemoryUsed = new Sensor("Virtual Memory Total", 2, SensorType.Data, this, settings);
-        ActivateSensor(VirtualMemoryUsed);
+        VirtualMemoryTotal = new Sensor("Virtual Memory Total", 2, SensorType.Data, this, settings);
+        ActivateSensor(VirtualMemoryTotal);
 
         VirtualMemoryAvailable = new Sensor("Virtual Memory Available", 3, SensorType.Data, this, settings);
         ActivateSensor(VirtualMemoryAvailable);
+
+        VirtualMemoryUsed = new Sensor("Virtual Memory Used", 5, SensorType.Data, this, settings);
+        ActivateSensor(VirtualMemoryUsed);
 
         VirtualMemoryLoad = new Sensor("Virtual Memory", 1, SensorType.Load, this, settings);
         ActivateSensor(VirtualMemoryLoad);
@@ -28,6 +31,8 @@ internal sealed class VirtualMemory : Hardware
     internal Sensor VirtualMemoryLoad { get; }
 
     internal Sensor VirtualMemoryUsed { get; }
+
+    internal Sensor VirtualMemoryTotal { get; }
 
     public override void Update()
     {
