@@ -22,6 +22,7 @@ using LibreHardwareMonitor.Hardware.Memory;
 using LibreHardwareMonitor.Hardware.Motherboard;
 using LibreHardwareMonitor.Hardware.Network;
 using LibreHardwareMonitor.Hardware.Psu.Corsair;
+using LibreHardwareMonitor.Hardware.Psu.Msi;
 using LibreHardwareMonitor.Hardware.Storage;
 
 namespace LibreHardwareMonitor.Hardware;
@@ -171,7 +172,9 @@ public class Computer : IComputer
                 {
                     Add(new AmdGpuGroup(_settings));
                     Add(new NvidiaGroup(_settings));
-                    Add(new IntelGpuGroup(GetIntelCpus(), _settings));
+
+                    if (_cpuEnabled)
+                        Add(new IntelGpuGroup(GetIntelCpus(), _settings));
                 }
                 else
                 {
@@ -250,10 +253,12 @@ public class Computer : IComputer
                 if (value)
                 {
                     Add(new CorsairPsuGroup(_settings));
+                    Add(new MsiPsuGroup(_settings));
                 }
                 else
                 {
                     RemoveType<CorsairPsuGroup>();
+                    RemoveType<MsiPsuGroup>();
                 }
             }
 
@@ -504,7 +509,9 @@ public class Computer : IComputer
         {
             Add(new AmdGpuGroup(_settings));
             Add(new NvidiaGroup(_settings));
-            Add(new IntelGpuGroup(GetIntelCpus(), _settings));
+
+            if (_cpuEnabled)
+                Add(new IntelGpuGroup(GetIntelCpus(), _settings));
         }
 
         if (_controllerEnabled)
@@ -524,7 +531,10 @@ public class Computer : IComputer
             Add(new NetworkGroup(_settings));
 
         if (_psuEnabled)
+        {
             Add(new CorsairPsuGroup(_settings));
+            Add(new MsiPsuGroup(_settings));
+        }
 
         if (_batteryEnabled)
             Add(new BatteryGroup(_settings));
