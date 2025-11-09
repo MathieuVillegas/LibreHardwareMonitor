@@ -21,7 +21,6 @@ internal static unsafe class MemoryWindows
         memory.PhysicalMemoryUsed.Value = (float)(status.ullTotalPhys - status.ullAvailPhys) / (1024 * 1024 * 1024);
         memory.PhysicalMemoryTotal.Value      = (float)status.ullTotalPhys / (1024 * 1024 * 1024);
         memory.PhysicalMemoryAvailable.Value = (float)status.ullAvailPhys / (1024 * 1024 * 1024);
-        memory.PhysicalMemoryUsed.Value = (float)(status.ullTotalPhys - status.ullAvailPhys) / (1024 * 1024 * 1024);
         memory.PhysicalMemoryLoad.Value      = 100.0f - ((100.0f * status.ullAvailPhys) / status.ullTotalPhys);
     }
 
