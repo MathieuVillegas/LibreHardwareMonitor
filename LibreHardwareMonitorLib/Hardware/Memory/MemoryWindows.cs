@@ -31,7 +31,7 @@ internal static unsafe class MemoryWindows
         if (!PInvoke.GlobalMemoryStatusEx(ref status))
             return;
 
-        memory.VirtualMemoryUsed.Value      = (float)status.ullTotalPageFile / (1024 * 1024 * 1024);
+        memory.VirtualMemoryTotal.Value      = (float)status.ullTotalPageFile / (1024 * 1024 * 1024);
         memory.VirtualMemoryAvailable.Value = (float)(status.ullTotalPageFile - status.ullAvailPageFile) / (1024 * 1024 * 1024);
         memory.VirtualMemoryUsed.Value = (float)status.ullAvailPageFile / (1024 * 1024 * 1024);
         memory.VirtualMemoryLoad.Value = 100.0f - ((100.0f * status.ullAvailPageFile) / status.ullTotalPageFile);

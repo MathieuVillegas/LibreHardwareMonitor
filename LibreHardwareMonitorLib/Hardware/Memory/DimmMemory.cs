@@ -50,7 +50,7 @@ internal sealed class DimmMemory : Hardware
         CreateSensors(accessor, hasThermalSensor);
     }
 
-    public override HardwareType HardwareType => HardwareType.Memory;
+    public override HardwareType HardwareType => HardwareType.Dimm;
 
     public override void Update()
     {
