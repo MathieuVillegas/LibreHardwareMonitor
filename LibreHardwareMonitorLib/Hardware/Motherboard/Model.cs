@@ -1,4 +1,4 @@
-﻿// This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0.
+// This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0.
 // If a copy of the MPL was not distributed with this file, You can obtain one at http://mozilla.org/MPL/2.0/.
 // Copyright (C) LibreHardwareMonitor and Contributors.
 // Partial Copyright (C) Michael Möller <mmoeller@openhardwaremonitor.org> and Contributors.
@@ -10,6 +10,10 @@ using System.Diagnostics.CodeAnalysis;
 
 namespace LibreHardwareMonitor.Hardware.Motherboard;
 
+#pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
+/// <summary>
+/// Known motherboard models detected/recognized by LibreHardwareMonitor.
+/// </summary>
 [SuppressMessage("ReSharper", "IdentifierTypo")]
 [SuppressMessage("ReSharper", "CommentTypo")]
 public enum Model
@@ -45,6 +49,7 @@ public enum Model
     H61M_DGS,
     B850M_STEEL_LEGEND_WIFI,
     X870E_TAICHI,
+    X870E_NOVA_WIFI,
 
     // ASUS
     CROSSHAIR_III_FORMULA,
@@ -73,6 +78,8 @@ public enum Model
     ROG_STRIX_Z390_F_GAMING,
     ROG_STRIX_Z390_I_GAMING,
     ROG_STRIX_Z690_A_GAMING_WIFI_D4,
+    ROG_STRIX_Z690_G_GAMING_WIFI,
+    ROG_STRIX_B850_E_GAMING_WIFI,
     ROG_STRIX_B850_I_GAMING_WIFI,
     ROG_MAXIMUS_XI_FORMULA,
     ROG_MAXIMUS_XII_Z490_FORMULA,
@@ -106,11 +113,14 @@ public enum Model
     ROG_ZENITH_EXTREME,
     ROG_ZENITH_II_EXTREME,
     TUF_X470_PLUS_GAMING,
+    TUF_GAMING_X870_PLUS_WIFI,
     Z170_A,
+    Z170_PRO_GAMING,
     B150M_C,
     B150M_C_D3,
     TUF_GAMING_X570_PLUS_WIFI,
     TUF_GAMING_B550M_PLUS_WIFI,
+    TUF_GAMING_B760M_PLUS_WIFI_D4,
     ROG_MAXIMUS_Z790_HERO,
     ROG_MAXIMUS_Z790_DARK_HERO,
     PRIME_Z690_A,
@@ -124,6 +134,7 @@ public enum Model
     PROART_X870E_CREATOR_WIFI,
     PROART_B760_CREATOR_D4,
     TUF_GAMING_B450_PLUS_II,
+    TUF_GAMING_B850M_PLUS_II,
 
     //BIOSTAR
     B660GTN,
@@ -147,31 +158,49 @@ public enum Model
     Z68_MS7672,
     X570_Gaming_Plus,
     X570_MS7C35,
+    B850M_MORTAR,
     B850M_MORTAR_WIFI,
     B850_GAMING_PLUS_WIFI,
+    B850_GAMING_PLUS_WIFI6E,
+    B850_GAMING_PLUS_WIFI_PZ,
+    B850M_GAMING_PLUS_WIFI,
     B850M_GAMING_PLUS_WIFI6E,
     B840P_PRO_WIFI,
+    B840M_GAMING_PLUS_WIFI6E,
+    B850_TOMAHAWK_WIFI,
     B850_TOMAHAWK_MAX_WIFI,
     B650M_PROJECT_ZERO,
     B850P_PRO_WIFI,
+    B850MA_PRO_WIFI,
+    B850MA_PRO_WIFI_PZ,
+    B850MP_PRO_WIFI,
     B850_EDGE_TI_WIFI,
+    B850I_EDGE_TI_WIFI,
+    B850MPOWER,
     X870_GAMING_PLUS_WIFI,
+    X870E_GAMING_PLUS_WIFI,
     X870_TOMAHAWK_WIFI,
     X870E_TOMAHAWK_WIFI,
+    X870E_TOMAHAWK_MAX_WIFI_PZ,
     X870E_GODLIKE,
     X870P_PRO_WIFI,
+    X870EP_PRO_WIFI,
     X870E_CARBON_WIFI,
     X870E_EDGE_TI_WIFI,
+    Z790_GODLIKE_MAX,
     Z890_ACE,
     Z890_TOMAHAWK_WIFI,
     Z890_CARBON_WIFI,
     Z890_EDGE_TI_WIFI,
+    Z890_UNIFY_X,
+    Z890I_EDGE_TI_WIFI,
     Z890P_PRO_WIFI,
     Z890A_PRO_WIFI,
     Z890S_PRO_WIFI,
     Z890_GAMING_PLUS_WIFI,
     Z890S_PRO_WIFI_PROJECT_ZERO,
     B850S_PRO_WIFI6E,
+    Z390_GAMING_EDGE_AC,
 
     // EVGA
     X58_SLI_Classified,
@@ -184,6 +213,7 @@ public enum Model
     AB350_Gaming_3,
     AX370_Gaming_5,
     AX370_Gaming_K7,
+    A320M_S2H_CF,
     B360M_H,
     B360_AORUS_GAMING_3_WIFI_CF,
     B550_AORUS_MASTER,
@@ -208,6 +238,7 @@ public enum Model
     B560M_AORUS_PRO,
     B560M_AORUS_PRO_AX,
     B560I_AORUS_PRO_AX,
+    B650_EAGLE_AX,
     B660_DS3H_DDR4,
     B660_DS3H_AC_DDR4,
     B660M_DS3H_AX_DDR4,
@@ -293,6 +324,7 @@ public enum Model
     B650M_AORUS_PRO_AX,
     B650M_AORUS_ELITE,
     B650M_AORUS_ELITE_AX,
+    B650I_AX,
     X670E_AORUS_XTREME,
     X870E_AORUS_PRO,
     X870E_AORUS_PRO_ICE,
@@ -306,6 +338,37 @@ public enum Model
 
     //Supermicro
     X11SWN_E,
+
+    // Framework
+    FRANBMCP03, // Intel Core i5-1135G7
+    FRANBMCP06, // Intel Core i7-1165G7
+    FRANBMCP08, // Intel Core i7-1185G7
+    FRANBMCP0A, // Intel Core i5-1135G7
+    FRANBMCP0B, // Intel Core i7-1165G7
+    FRANBMCP0C, // Intel Core i7-1185G7
+    FRANGACP04, // Intel Core i5-1240P
+    FRANGACP06, // Intel Core i7-1260P
+    FRANGACP08, // Intel Core i7-1280P
+    FRANMACP04, // Intel Core i5-1240P
+    FRANMACP06, // Intel Core i7-1260P
+    FRANMACP08, // Intel Core i7-1280P
+    FRANMCCP04, // Intel Core i5-1340P
+    FRANMCCP06, // Intel Core i7-1360P
+    FRANMCCP07, // Intel Core i7-1370P
+    FRANMDCP05, // FW13 AMD Ryzen 5 7640U
+    FRANMDCP07, // FW13 AMD Ryzen 7 7840U
+    FRANMECP02, // FW13 Intel Core Ultra 5 125H
+    FRANMECP05, // FW13 Intel Core Ultra 7 155H
+    FRANMECP06, // FW13 Intel Core Ultra 7 165H
+    FRANMZCP07, // FW16 AMD Ryzen 7 7840HS
+    FRANMZCP09, // FW16 AMD Ryzen 9 7940HS
+    FRANMFCP02, // Desktop AMD RYZEN AI MAX 385
+    FRANMFCP06, // Desktop AMD RYZEN AI MAX+ 395
+    FRAPMACP03, // FW12 Intel Core i3-1315U
+    FRAPMACP05, // FW12 Intel Core i5-1334U
+    FRANMGCP05, // FW13 AMD Ryzen AI 5 340
+    FRANMGCP07, // FW13 AMD Ryzen AI 7 350
+    FRANMGCP09, // FW13 AMD Ryzen AI 9 HX 370
 
     // Unknown
     Unknown

@@ -17,10 +17,8 @@ using Aga.Controls.Tree;
 using Aga.Controls.Tree.NodeControls;
 using LibreHardwareMonitor.Hardware;
 using LibreHardwareMonitor.Hardware.Storage;
-using LibreHardwareMonitor.PawnIo;
 using LibreHardwareMonitor.UI.Themes;
 using LibreHardwareMonitor.Utilities;
-using LibreHardwareMonitor.Wmi;
 
 namespace LibreHardwareMonitor.UI;
 
@@ -56,7 +54,6 @@ public sealed partial class MainForm : Form
     private readonly SystemTray _systemTray;
     private readonly UnitManager _unitManager;
     private readonly UpdateVisitor _updateVisitor = new();
-    private readonly WmiProvider _wmiProvider;
 
     private int _delayCount;
     private Form _plotForm;
@@ -153,7 +150,6 @@ public sealed partial class MainForm : Form
             treeView.RowHeight = Math.Max(treeView.Font.Height + 1, 18);
             _gadget = new SensorGadget(_computer, _settings, _unitManager);
             _gadget.HideShowCommand += HideShowClick;
-            _wmiProvider = new WmiProvider(_computer);
         }
 
         treeView.ShowNodeToolTips = true;
@@ -436,11 +432,11 @@ public sealed partial class MainForm : Form
             switch (_throttleAtaUpdate.Value)
             {
                 case true:
-                    AtaStorage.ThrottleInterval = TimeSpan.FromSeconds(30);
+                    StorageDevice.ThrottleInterval = TimeSpan.FromSeconds(30);
                     break;
 
                 case false:
-                    AtaStorage.ThrottleInterval = TimeSpan.Zero;
+                    StorageDevice.ThrottleInterval = TimeSpan.Zero;
                     break;
             }
         };
@@ -933,12 +929,9 @@ public sealed partial class MainForm : Form
         treeView.Invalidate();
         _systemTray.Redraw();
         _gadget?.Redraw();
-        _wmiProvider?.Update();
 
         if (!backgroundUpdater.IsBusy)
             backgroundUpdater.RunWorkerAsync();
-
-        RestoreCollapsedNodeState(treeView);
     }
 
     private void SaveConfiguration()
@@ -1296,11 +1289,27 @@ public sealed partial class MainForm : Form
     private void ExpandAllNodes_Click(object sender, EventArgs e)
     {
         treeView.ExpandAll();
+
+        foreach (var node in treeView.AllNodes)
+        {
+            if (node.Tag is IExpandPersistNode expandPersistNode)
+            {
+                expandPersistNode.Expanded = true;
+            }
+        }
     }
 
-    private void CollapsepAllNodes_Click(object sender, EventArgs e)
+    private void CollapseAllNodes_Click(object sender, EventArgs e)
     {
         treeView.CollapseAll();
+
+        foreach (var node in treeView.AllNodes)
+        {
+            if (node.Tag is IExpandPersistNode expandPersistNode)
+            {
+                expandPersistNode.Expanded = false;
+            }
+        }
     }
 
     private void resetPlotMenuItem_Click(object sender, EventArgs e)
@@ -1358,6 +1367,28 @@ public sealed partial class MainForm : Form
                 newWidth -= treeView.Columns[i].Width;
         }
         treeView.Columns[0].Width = newWidth;
+    }
+
+    private void TreeView_KeyDown(object sender, KeyEventArgs e)
+    {
+        if (treeView.SelectedNode != null)
+        {
+            switch (e.KeyCode)
+            {
+                case Keys.Right:
+                    if (treeView.SelectedNode.Tag is IExpandPersistNode expandPersistNodeR)
+                    {
+                        expandPersistNodeR.Expanded = true;
+                    }
+                    return;
+                case Keys.Left:
+                    if (treeView.SelectedNode.Tag is IExpandPersistNode expandPersistNodeL)
+                    {
+                        expandPersistNodeL.Expanded = false;
+                    }
+                    return;
+            }
+        }
     }
 
     private void TreeView_ColumnWidthChanged(TreeColumn column)
