@@ -370,15 +370,15 @@ public class HttpServer
                             return;
                         }
 
-                        if (requestedFile == "metrics")
-                        {
-                            await SendPrometheusAsync(context.Response, request);
-                            return;
-                        }
-
                         if (requestedFile.Contains("images_icon"))
                         {
                             await ServeResourceImageAsync(context.Response, requestedFile.Replace("images_icon/", string.Empty));
+                            return;
+                        }
+
+                        if (requestedFile.StartsWith("metrics?") || requestedFile == "metrics")
+                        {
+                            await SendPrometheusAsync(context.Response, request);
                             return;
                         }
 
@@ -569,13 +569,13 @@ public class HttpServer
         response.Close();
     }
 
-    private string GeneratePrometheusResponse(Node node)
+    private string GeneratePrometheusResponse(Node node, Dictionary<string, int> prometheusSettings)
     {
         string responseStr = "";
         string lastTagName = "";
 
         /// Dictionary to convert all data to base units for OpenMetrics
-        /// suffix, factor
+        /// SensorType, Item1 suffix, Item2 factor
         var units = new Dictionary<SensorType, (string, double)>
         {
            { SensorType.Clock, ("hertz", 1000000)},                           //originally megahertz
@@ -585,7 +585,7 @@ public class HttpServer
            { SensorType.Data, ("bytes", 1000000000) },                        //originally GB
            { SensorType.Energy, ("watthour", 0.001) },
            { SensorType.Factor, ("", 1) },
-           { SensorType.Fan, ("rpms", 1) },
+           { SensorType.Fan, ("rpm", 1) },
            { SensorType.Flow, ("liters_per_hour", 1) },
            { SensorType.Frequency, ("hertz", 1) },
            { SensorType.Humidity, ("percent", 1) },
@@ -595,7 +595,7 @@ public class HttpServer
            { SensorType.Power, ("watts", 1) },
            { SensorType.SmallData, ("bytes", 1024*1024) },                    //originally MiB
            { SensorType.Temperature, ("celsius", 1) },
-           { SensorType.Throughput, ("bytes_per_second", 1000) },             //originally KB
+           { SensorType.Throughput, ("bytes_per_second", 1) },
            { SensorType.TimeSpan, ("seconds", 1) },
            { SensorType.Timing, ("seconds", 0.000000001 ) },                  //originally nanoseconds
            { SensorType.Voltage, ("volts", 1) },
@@ -605,42 +605,93 @@ public class HttpServer
         {
             if (node.Nodes[i].GetType().Name == "HardwareNode")
             {
-                responseStr += GeneratePrometheusResponse(node.Nodes[i]);
+                responseStr += GeneratePrometheusResponse(node.Nodes[i], prometheusSettings);
             }
 
             if (node.Nodes[i].GetType().Name == "TypeNode")
             {
-                string prometheusHost = node.Parent.Text;
+                string tagHardware = "";
+                string valueHardwareName = "";
+                string valueHardwareId = ((HardwareNode)node).Hardware.Identifier.ToString();
+
+                if (((HardwareNode)node).Hardware.Parent != null)
+                {
+                    tagHardware = ((HardwareNode)node).Hardware.Parent.HardwareType.ToString();
+                    valueHardwareName = ((HardwareNode)node).Hardware.Parent.Name;
+                }
+                else
+                {
+                    tagHardware = ((HardwareNode)node).Hardware.HardwareType.ToString();
+                    valueHardwareName = node.Text;
+                }
+
+                string valueHardwareAlias = $"{valueHardwareName} ({valueHardwareId})";
+
                 foreach (SensorNode sensor in node.Nodes[i].Nodes)
                 {
-                    string tagHardware = (((HardwareNode)node).Hardware.Parent != null ? ((HardwareNode)node).Hardware.Parent.HardwareType.ToString() : ((HardwareNode)node).Hardware.HardwareType.ToString());
+                    string valueSensorName = sensor.Text.Replace("#", String.Empty);
+
+                    // Variables needed in dictionary lookup and error message
                     string tagSensorType = sensor.Sensor.SensorType.ToString();
-                    string tagSensorUnits = (units[sensor.Sensor.SensorType].Item1.Length == 0 ? "" : "_" + units[sensor.Sensor.SensorType].Item1);
+
+                    double factor = 1;
+                    string tagSensorUnits = "";
+
+                    // Get factor and unit suffix from dictionary ...
+                    if (units.ContainsKey(sensor.Sensor.SensorType))
+                    {
+                        factor = units[sensor.Sensor.SensorType].Item2;
+                        tagSensorUnits = (units[sensor.Sensor.SensorType].Item1.Length == 0 ? String.Empty : "_" + units[sensor.Sensor.SensorType].Item1);
+                    }
+                    // ... or print an error message
+                    else
+                    {
+                        responseStr += $"# HELP {tagHardware}_{tagSensorType}:{valueSensorName} This Sensor type is not defined in the prometheus adapter [{sensor.Sensor.SensorType}]\n";
+                    }
+
+                    // Creating the tag name for prometheus
                     string tagName = $"lhm_{tagHardware}_{tagSensorType}{tagSensorUnits}";
                     tagName = tagName.ToLower();
 
-                    string valueSensor = sensor.Text.Replace("#", "");
-                    string valueHardware = node.Text;
-                    string valueId = sensor.Sensor.Identifier.ToString().Split('/').Last();
-                    string valueFamily = node.Nodes[i].Text;
+                    // Preparing the labels for all data and uniqueness
+                    string valueSensorId = sensor.Sensor.Identifier.ToString().Substring(valueHardwareId.Length);
+                    string valueSensorAlias = $"{valueSensorName} ({valueSensorId})";
                     string valueHost = _root.Text;
 
-                    try
+                    // Creates the tag with labels
+                    string tagLine = $$"""{{tagName}} {"sensorName"="{{valueSensorName}}", "sensorAlias"="{{valueSensorAlias}}", "hardwareName"="{{valueHardwareName}}", "hardwareAlias"="{{valueHardwareAlias}}", "sensorId"="{{valueSensorId}}", "hardwareId"="{{valueHardwareId}}", "host"="{{valueHost}}"}""";
+
+                    if (lastTagName != tagName)
                     {
-
-                        if (lastTagName != tagName)
-                        {
-                            responseStr += $"# TYPE {tagName} gauge\n";
-                            lastTagName = tagName;
-                        }
-
-                        double? tagValue = units[sensor.Sensor.SensorType].Item2 * sensor.Sensor.Value;
-                        responseStr += $$"""{{tagName}} {"sensor"="{{valueSensor}}" "hardware"="{{valueHardware}}" "id"="{{valueId}}" "family"="{{valueFamily}}" "host"="{{valueHost}}"} {{tagValue}}""" + "\n";
+                        responseStr += $"# TYPE {tagName} gauge\n";
+                        lastTagName = tagName;
                     }
-                    catch (Exception)
+
+                    int counter = 0;
+                    foreach (SensorValue val in sensor.Sensor.Values.Reverse())
                     {
-                        responseStr += $"# HELP {lastTagName} This Sensor type is not defined in the prometheus adapter [{sensor.Sensor.SensorType}]\n";
-                        responseStr += $$"""{{tagName}} {"sensor"="{{valueSensor}}" "hardware"="{{valueHardware}}" "id"="{{valueId}}" "family"="{{valueFamily}}" "host"="{{valueHost}}"} {{sensor.Sensor.Value}}""" + "\n";
+                        if (counter++ > prometheusSettings["archivelength"])
+                            break;
+
+                        if (float.IsNaN(val.Value))
+                        {
+                            // Print a help line saying what tag had an invalid value
+                            responseStr += $"# HELP {tagLine} has an invalid value and was skipped.\n";
+                        }
+                        else
+                        {
+                            if (counter == 1 && prometheusSettings["lastvalue"] == 0)
+                                continue; // skip the first value in the list
+
+                            if (prometheusSettings["timestamps"] == 1)
+                            {
+                                responseStr += $"{tagLine} {(val.Value * factor).ToString(CultureInfo.InvariantCulture)} {((DateTimeOffset)val.Time).ToUnixTimeMilliseconds()}\n";
+                            }
+                            else
+                            {
+                                responseStr += $"{tagLine} {(val.Value * factor).ToString(CultureInfo.InvariantCulture)}\n";
+                            }
+                        }
                     }
                 }
             }
@@ -650,9 +701,74 @@ public class HttpServer
 
     private async Task SendPrometheusAsync(HttpListenerResponse response, HttpListenerRequest request = null)
     {
-        string responseContent = GeneratePrometheusResponse(_root);
+        Dictionary<string, int> prometheusSettings = new Dictionary<string, int>();
+        //Default values: archivelength=0, timestamps=0, lastvalue=1
+        prometheusSettings["archivelength"] = 0;
+        prometheusSettings["timestamps"] = 0;
+        prometheusSettings["lastvalue"] = 1;
+
+        if (request != null && request.QueryString != null && request.QueryString.Count > 0)
+        {
+            int archive = 0, timestamps = 0, lastvalue = 1;
+            
+            foreach (string key in request.QueryString.AllKeys)
+            {
+                switch (key)
+                {
+                    case "timestamps":
+                        int.TryParse(request.QueryString[key], out timestamps);     
+
+                        if (timestamps < 0 || timestamps > 1)
+                            timestamps = 0;     // Enforce boolean range 0 to 1
+
+                        if (archive > 0)
+                            timestamps = 1;     // If archive is requested, timestamps must be enabled
+
+                        break;
+                    case "archivelength":
+                        int.TryParse(request.QueryString[key], out archive);
+                        archive = Math.Min(10, archive); // Enforce max 10
+                        archive = Math.Max(0, archive); // Enforce min 0
+
+                        if (archive == 0 && lastvalue == 0)
+                            archive = 1; // If lastvalue was not requested then return at least 1 archived value
+
+                        if (archive > 0)
+                            timestamps = 1; // If archive is requested, timestamps must be enabled
+
+                        break;
+                    case "lastvalue":
+                        int.TryParse(request.QueryString[key], out lastvalue);
+
+                        if (lastvalue < 0 || lastvalue > 1)
+                            lastvalue = 1; // Enforce boolean range 0 to 1
+
+                        if (lastvalue == 0 && archive  == 0)
+                        {
+                            archive = 1;
+                            timestamps = 1;
+                        }
+
+                        break;
+                    default:
+                        break;
+                }
+            }
+
+            prometheusSettings["archivelength"] = archive;
+            prometheusSettings["timestamps"] = timestamps;
+            prometheusSettings["lastvalue"] = lastvalue;
+        }
+
+        string responseContent = GeneratePrometheusResponse(_root, prometheusSettings);
         response.AddHeader("Cache-Control", "no-cache");
         response.AddHeader("Access-Control-Allow-Origin", "*");
+
+        // Add custom headers to inform the user what settings are in effect
+        response.AddHeader("X-archivelength", prometheusSettings["archivelength"].ToString());
+        response.AddHeader("X-timestamps", prometheusSettings["timestamps"].ToString());
+        response.AddHeader("X-lastvalue", prometheusSettings["lastvalue"].ToString());
+
         await SendResponseAsync(response, responseContent, "text/plain");
     }
 

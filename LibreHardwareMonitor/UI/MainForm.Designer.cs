@@ -397,7 +397,7 @@ namespace LibreHardwareMonitor.UI
             this.collpaseAllNodesMenuItem.Name = "collpaseAllNodesMenuItem";
             this.collpaseAllNodesMenuItem.Size = new System.Drawing.Size(188, 22);
             this.collpaseAllNodesMenuItem.Text = "Collapse All Nodes";
-            this.collpaseAllNodesMenuItem.Click += new System.EventHandler(this.CollapsepAllNodes_Click);
+            this.collpaseAllNodesMenuItem.Click += new System.EventHandler(this.CollapseAllNodes_Click);
             //
             // resetPlotMenuItem
             //
@@ -1077,6 +1077,7 @@ namespace LibreHardwareMonitor.UI
             this.treeView.MouseMove += new System.Windows.Forms.MouseEventHandler(this.TreeView_MouseMove);
             this.treeView.MouseUp += new System.Windows.Forms.MouseEventHandler(this.TreeView_MouseUp);
             this.treeView.SizeChanged += new System.EventHandler(this.TreeView_SizeChanged);
+            this.treeView.KeyDown += new System.Windows.Forms.KeyEventHandler(this.TreeView_KeyDown);
             //
             // batteryMenuItem
             //

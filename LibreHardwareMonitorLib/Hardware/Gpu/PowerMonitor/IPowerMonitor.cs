@@ -4,14 +4,9 @@
 // Partial Copyright (C) Michael Möller <mmoeller@openhardwaremonitor.org> and Contributors.
 // All Rights Reserved.
 
-namespace LibreHardwareMonitor.Wmi;
+namespace LibreHardwareMonitor.Hardware.Gpu.PowerMonitor;
 
-interface IWmiObject
+internal interface IPowerMonitor
 {
-    // Both of these get exposed to WMI
-    string Name { get; }
-    string Identifier { get; }
-
-    // Not exposed.
-    void Update();
+    //To be filled
 }
