@@ -56,6 +56,7 @@ namespace LibreHardwareMonitor.UI
             this.cpuMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.ramMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.gpuMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.powerMonitorMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.fanControllerMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.hddMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.nicMenuItem = new System.Windows.Forms.ToolStripMenuItem();
@@ -101,6 +102,7 @@ namespace LibreHardwareMonitor.UI
             this.splitPanelFixedSensorScalingMenuItem = new LibreHardwareMonitor.UI.ToolStripRadioButtonMenuItem();
             this.logSeparatorMenuItem = new System.Windows.Forms.ToolStripSeparator();
             this.logSensorsMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.forceDriveWakeupItem = new System.Windows.Forms.ToolStripMenuItem();
             this.fileRotationMethod = new System.Windows.Forms.ToolStripMenuItem();
             this.perSessionFileRotationMenuItem = new LibreHardwareMonitor.UI.ToolStripRadioButtonMenuItem();
             this.dailyFileRotationMenuItem = new LibreHardwareMonitor.UI.ToolStripRadioButtonMenuItem();
@@ -292,6 +294,7 @@ namespace LibreHardwareMonitor.UI
             this.cpuMenuItem,
             this.ramMenuItem,
             this.gpuMenuItem,
+            this.powerMonitorMenuItem,
             this.fanControllerMenuItem,
             this.hddMenuItem,
             this.nicMenuItem,
@@ -324,6 +327,12 @@ namespace LibreHardwareMonitor.UI
             this.gpuMenuItem.Name = "gpuMenuItem";
             this.gpuMenuItem.Size = new System.Drawing.Size(180, 22);
             this.gpuMenuItem.Text = "GPU";
+            //
+            // powerMonitorMenuItem
+            //
+            this.powerMonitorMenuItem.Name = "powerMonitorMenuItem";
+            this.powerMonitorMenuItem.Size = new System.Drawing.Size(180, 22);
+            this.powerMonitorMenuItem.Text = "Power Monitors";
             //
             // fanControllerMenuItem
             //
@@ -477,6 +486,7 @@ namespace LibreHardwareMonitor.UI
             this.splitPlotPanelScalingMenuItem,
             this.logSeparatorMenuItem,
             this.logSensorsMenuItem,
+            this.forceDriveWakeupItem,
             this.loggingIntervalMenuItem,
             this.updateIntervalMenuItem,
             this.fileRotationMethod,
@@ -658,6 +668,12 @@ namespace LibreHardwareMonitor.UI
             this.logSensorsMenuItem.Name = "logSensorsMenuItem";
             this.logSensorsMenuItem.Size = new System.Drawing.Size(221, 22);
             this.logSensorsMenuItem.Text = "Log Sensors";
+            //
+            // forceDriveWakeupItem
+            //
+            this.forceDriveWakeupItem.Name = "forceDriveWakeupItem";
+            this.forceDriveWakeupItem.Size = new System.Drawing.Size(221, 22);
+            this.forceDriveWakeupItem.Text = "Force Drive Wakeup";
             //
             // fileRotationMethod
             //
@@ -1176,9 +1192,11 @@ namespace LibreHardwareMonitor.UI
         private System.Windows.Forms.ToolStripMenuItem mainboardMenuItem;
         private System.Windows.Forms.ToolStripMenuItem cpuMenuItem;
         private System.Windows.Forms.ToolStripMenuItem gpuMenuItem;
+        private System.Windows.Forms.ToolStripMenuItem powerMonitorMenuItem;
         private System.Windows.Forms.ToolStripMenuItem fanControllerMenuItem;
         private System.Windows.Forms.ToolStripMenuItem ramMenuItem;
         private System.Windows.Forms.ToolStripMenuItem logSensorsMenuItem;
+        private System.Windows.Forms.ToolStripMenuItem forceDriveWakeupItem;
         private System.Windows.Forms.ToolStripSeparator logSeparatorMenuItem;
         private System.Windows.Forms.ToolStripMenuItem loggingIntervalMenuItem;
         private ToolStripRadioButtonMenuItem log1sMenuItem;
