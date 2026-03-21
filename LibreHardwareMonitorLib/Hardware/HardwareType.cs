@@ -24,6 +24,6 @@ public enum HardwareType
     EmbeddedController,
     Psu,
     Battery,
-    GpuPowerMonitor,
+    PowerMonitor,
     Dimm
 }

@@ -33,6 +33,7 @@ public sealed partial class MainForm : Form
     private readonly UserRadioGroup _updateInterval;
     private readonly UserOption _throttleAtaUpdate;
     private readonly UserOption _logSensors;
+    private readonly UserOption _forceDriveWakeup;
     private readonly UserOption _minimizeOnClose;
     private readonly UserOption _minimizeToTray;
     private readonly PlotPanel _plotPanel;
@@ -40,6 +41,7 @@ public sealed partial class MainForm : Form
     private readonly UserOption _readCpuSensors;
     private readonly UserOption _readFanControllersSensors;
     private readonly UserOption _readGpuSensors;
+    private readonly UserOption _readPowerMonitorSensors;
     private readonly UserOption _readHddSensors;
     private readonly UserOption _readMainboardSensors;
     private readonly UserOption _readNicSensors;
@@ -265,6 +267,9 @@ public sealed partial class MainForm : Form
         _readGpuSensors = new UserOption("gpuMenuItem", true, gpuMenuItem, _settings);
         _readGpuSensors.Changed += delegate { _computer.IsGpuEnabled = _readGpuSensors.Value; };
 
+        _readPowerMonitorSensors = new UserOption("powerMonitorMenuItem", true, powerMonitorMenuItem, _settings);
+        _readPowerMonitorSensors.Changed += delegate { _computer.IsPowerMonitorEnabled = _readPowerMonitorSensors.Value; };
+
         _readFanControllersSensors = new UserOption("fanControllerMenuItem", true, fanControllerMenuItem, _settings);
         _readFanControllersSensors.Changed += delegate { _computer.IsControllerEnabled = _readFanControllersSensors.Value; };
 
@@ -282,9 +287,20 @@ public sealed partial class MainForm : Form
 
         _showGadget = new UserOption("gadgetMenuItem", false, gadgetMenuItem, _settings);
 
+        _forceDriveWakeup = new UserOption("forceDriveWakeupItem", false, forceDriveWakeupItem, _settings);
+        _forceDriveWakeup.Changed += delegate
+        {
+            _computer.Hardware
+                .OfType<StorageDevice>()
+                .ToList()
+                .ForEach(sd =>
+            {
+                sd.ForceWakeup = _forceDriveWakeup.Value;
+            });
+        };
+
         // Prevent Menu From Closing When UnClicking Hardware Items
         menuItemFileHardware.DropDown.Closing += StopFileHardwareMenuFromClosing;
-
 
         _showGadget.Changed += delegate
         {

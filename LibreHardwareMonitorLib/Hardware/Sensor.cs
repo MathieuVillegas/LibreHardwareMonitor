@@ -79,10 +79,7 @@ internal class Sensor : ISensor
         get { return _hardware; }
     }
 
-    virtual public Identifier Identifier
-    {
-        get { return new Identifier(_hardware.Identifier, SensorType.ToString().ToLowerInvariant(), Index.ToString(CultureInfo.InvariantCulture)); }
-    }
+    public virtual Identifier Identifier => field ??= new Identifier(_hardware.Identifier, SensorType.ToString().ToLowerInvariant(), Index.ToString(CultureInfo.InvariantCulture));
 
     public int Index { get; }
 
